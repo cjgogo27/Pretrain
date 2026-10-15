@@ -1,0 +1,26 @@
+<figure class="stages" aria-labelledby="stages-caption">
+  <figcaption id="stages-caption"><strong>教学假设：把四类计划放在同一条累计 token 轴上</strong><br/>不是 TinyPretrain 已运行的计划，也不是公开项目的原配置。</figcaption>
+  <div class="chart-scroll" tabindex="0" role="region" aria-label="可横向滚动的训练阶段图">
+    <svg viewBox="0 0 920 420" role="img" aria-labelledby="stage-title stage-desc">
+      <title id="stage-title">0 到 120B token 的假设阶段连接</title>
+      <desc id="stage-desc">0到80B为主训练，80到100B改变配比，100到110B退火，110到120B以新学习率计划做长序列适配。配比和长度不必与学习率同时变化。每20B及阶段边界保存检查点，指定节点评估。</desc>
+      <g class="grid"><path d="M150 55V360M390 55V360M630 55V360M750 55V360M810 55V360M870 55V360"/></g>
+      <g class="labels"><text x="150" y="35">0</text><text x="390" y="35">40B</text><text x="630" y="35">80B</text><text x="750" y="35">100B</text><text x="810" y="35">110B</text><text x="865" y="35">120B</text><text x="370" y="400">累计消费的训练 token（B = 10⁹）</text>
+        <text x="8" y="105">学习率（相对值）</text><text x="8" y="190">数据配比</text><text x="8" y="270">序列长度</text><text x="8" y="342">检查点 / 评估</text></g>
+      <path class="lr" d="M150 135L180 75H750L810 135M810 115L824 95L870 125"/>
+      <g class="labels small"><text x="185" y="115">预热后稳定</text><text x="754" y="65">退火</text><text x="808" y="155">新阶段重设计划</text></g>
+      <rect x="150" y="170" width="480" height="40" class="mix1"/><rect x="630" y="170" width="120" height="40" class="mix2"/><rect x="750" y="170" width="120" height="40" class="mix3"/>
+      <g class="labels small"><text x="235" y="195">通用 90% / 代码 10%</text><text x="638" y="195">75% / 25%</text><text x="764" y="195">60% / 40%</text></g>
+      <path class="length" d="M150 270H810V240H870"/><g class="labels small"><text x="320" y="260">4K token</text><text x="830" y="230">8K</text></g>
+      <g class="nodes">{[270,390,510,630,750,810,870].map(x=><circle cx={x} cy="330" r="5"/>)}{[630,750,810,870].map(x=><rect x={x-5} y="346" width="10" height="10"/>)}</g>
+      <g class="labels small"><text x="180" y="365">● 每 20B 及边界保存　■ 80 / 100 / 110 / 120B 评估</text></g>
+    </svg>
+  </div>
+</figure>
+<style>
+  .stages { margin-block: 1.5rem; border: 1px solid var(--sl-color-gray-4); border-radius: .5rem; padding: 1rem; font-size: .95rem; }
+  .chart-scroll { overflow-x: auto; }svg { min-width: 760px; width: 100%; height: auto; display: block; }
+  .grid { stroke: var(--sl-color-gray-5); stroke-dasharray: 4 4; }.labels { fill: var(--sl-color-text); font-size: 13px; }.small { font-size: 12px; }
+  .lr { fill: none; stroke: var(--sl-color-text-accent); stroke-width: 3; }.length { fill: none; stroke: #0d9488; stroke-width: 3; }
+  .mix1 { fill: var(--sl-color-accent-low); }.mix2 { fill: color-mix(in srgb, #0d9488 20%, var(--sl-color-bg)); }.mix3 { fill: color-mix(in srgb, #d97706 20%, var(--sl-color-bg)); }.nodes { fill: var(--sl-color-text-accent); }
+</style>

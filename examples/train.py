@@ -27,6 +27,15 @@ TOKENIZER = "utf8-bytes-0-255,eos-256"
 CORE_KEYS = ["steps", "batch_size", "seq_len", "accum", "width", "layers", "heads", "lr",
              "warmup", "weight_decay", "clip", "seed", "device", "threads"]
 
+def code_sha256():
+    """Training identity, normalizing UTF-8 BOM/line endings; not a signature.
+
+    All local training logic is in this file. Git HEAD remains provenance, so a
+    docs-only commit does not invalidate a checkpoint with unchanged code.
+    """
+    source = Path(__file__).read_text(encoding="utf-8-sig").replace("\r\n", "\n")
+    return hashlib.sha256(source.encode("utf8")).hexdigest()
+
 class TinyLM(nn.Module):
     def __init__(self, width, layers, heads, seq_len):
         super().__init__()
@@ -96,17 +105,31 @@ def learning_rate(step, args):
 @torch.no_grad()
 def evaluate(model, stream, args, rank, world, device):
     model.eval()
-    # Reset an independent generator each evaluation; training sampler is untouched.
-    generator = torch.Generator().manual_seed(args.seed + 100000 + rank)
+    # Generate one global index list independent of DP layout, then partition it.
+    indices = validation_indices(stream, args)
+    local = indices[rank::world]
     totals = torch.zeros(2, dtype=torch.float64, device=device)
-    for _ in range(args.eval_batches):
-        x, y = batch(stream, args.batch_size, args.seq_len, generator, device)
+    for start in range(0, len(local), args.batch_size):
+        windows = torch.stack([stream[i:i + args.seq_len + 1] for i in local[start:start + args.batch_size]])
+        x, y = windows[:, :-1].to(device), windows[:, 1:].to(device)
         logits = model(x)
         totals[0] += F.cross_entropy(logits.reshape(-1, VOCAB), y.reshape(-1), reduction="sum").double()
         totals[1] += y.numel()
     if world > 1:
         dist.all_reduce(totals)
-    return (totals[0] / totals[1]).item()
+    result = (totals[0] / totals[1]).item()
+    if not math.isfinite(result):
+        raise FloatingPointError("Non-finite validation loss")
+    return result
+
+def validation_indices(stream, args):
+    """Same ordered windows for all layouts; overlaps/repeats are allowed."""
+    generator = torch.Generator().manual_seed(args.seed + 100000)
+    return torch.randint(len(stream) - args.seq_len, (args.eval_windows,), generator=generator).tolist()
+
+def validation_identity(stream, args):
+    indices = validation_indices(stream, args)
+    return hashlib.sha256(json.dumps(indices).encode("utf8")).hexdigest()
 
 def rng_state(generator, device):
     return {"python": random.getstate(), "torch": torch.get_rng_state(),
@@ -127,7 +150,7 @@ def git_revision():
     except (OSError, subprocess.CalledProcessError):
         return "unavailable"
 
-def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, rank, world, device):
+def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization):
     local = rng_state(generator, device)
     states = [None] * world
     if world > 1:
@@ -135,11 +158,12 @@ def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, ran
     else:
         states[0] = local
     if rank == 0:
-        payload = {"format_version": 1, "model": model.state_dict(), "optimizer": optimizer.state_dict(),
+        payload = {"format_version": 2, "model": model.state_dict(), "optimizer": optimizer.state_dict(),
                    "step": step, "tokens": tokens, "data_hashes": hashes, "world_size": world,
                    "config": vars(args), "rng_states": states, "torch_version": str(torch.__version__),
                    "code_revision": git_revision(),
-                   "code_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+                   "code_sha256": code_sha256(), "code_identity": "train.py:utf8-lf:sha256-v1",
+                   "initialization": initialization}
         target = Path(args.out) / "latest.pt"
         temporary = target.with_suffix(".pt.tmp")
         torch.save(payload, temporary)
@@ -163,17 +187,25 @@ def parse_args():
     parser.add_argument("--data", default="runs/data")
     parser.add_argument("--out", default="runs/tiny")
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
-    parser.add_argument("--resume")
+    initialization = parser.add_mutually_exclusive_group()
+    initialization.add_argument("--resume")
+    initialization.add_argument("--init-weights", help="Trusted checkpoint weights only; new optimizer, schedule and counters")
     parser.add_argument("--stop-after", type=int)
     for name, default in [("steps", 100), ("batch-size", 4), ("seq-len", 64), ("accum", 1),
                           ("width", 128), ("layers", 2), ("heads", 4), ("warmup", 10),
-                          ("eval-every", 20), ("eval-batches", 4), ("seed", 42), ("threads", 1)]:
+                          ("eval-every", 20), ("eval-windows", 16), ("seed", 42), ("threads", 1)]:
         parser.add_argument(f"--{name}", type=int, default=default)
+    parser.add_argument("--eval-batches", type=int, help=argparse.SUPPRESS)
     for name, default in [("lr", 3e-4), ("weight-decay", 0.1), ("clip", 1.0)]:
         parser.add_argument(f"--{name}", type=float, default=default)
     args = parser.parse_args()
+    if args.eval_batches is not None:
+        if args.eval_batches <= 0:
+            parser.error("eval-batches must be positive")
+        # Compatibility alias; now counts a global set, never per-rank sets.
+        args.eval_windows = args.eval_batches * args.batch_size
     for key in ["steps", "batch_size", "seq_len", "accum", "width", "layers", "heads",
-                "eval_every", "eval_batches", "threads"]:
+                "eval_every", "eval_windows", "threads"]:
         if getattr(args, key) <= 0:
             parser.error(f"{key} must be positive")
     if args.width % args.heads or args.warmup < 0 or args.lr <= 0 or args.clip <= 0 or args.weight_decay < 0:
@@ -202,9 +234,25 @@ def run(args):
     optimizer = torch.optim.AdamW(raw_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     generator = torch.Generator().manual_seed(args.seed + 1000 + rank)
     step, tokens = 0, 0
+    initialization = {"kind": "scratch"}
+    if args.init_weights:
+        source = torch.load(args.init_weights, map_location="cpu", weights_only=False)
+        for key in ("width", "layers", "heads", "seq_len"):
+            if source["config"][key] != getattr(args, key):
+                raise ValueError(f"Weight initialization architecture mismatch: {key}")
+        if source["data_hashes"].get("tokenizer") != TOKENIZER:
+            raise ValueError("Weight initialization tokenizer mismatch")
+        raw_model.load_state_dict(source["model"])
+        initialization = {"kind": "weights_only", "source_step": source["step"],
+                          "source_tokens": source["tokens"],
+                          "source_checkpoint_sha256": hashlib.sha256(Path(args.init_weights).read_bytes()).hexdigest()}
     if args.resume:
         # Trusted local full snapshot only; contains optimizer and Python RNG objects.
         state = torch.load(args.resume, map_location="cpu", weights_only=False)
+        if (state.get("format_version") != 2 or
+                state.get("code_identity") != "train.py:utf8-lf:sha256-v1" or
+                state.get("code_sha256") != code_sha256()):
+            raise ValueError("Training code identity mismatch or missing; strict resume refused")
         if state["data_hashes"] != hashes:
             raise ValueError("Data/tokenizer fingerprint mismatch; resume refused")
         if state["world_size"] != world:
@@ -217,18 +265,24 @@ def run(args):
         raw_model.load_state_dict(state["model"])
         optimizer.load_state_dict(state["optimizer"])
         step, tokens = state["step"], state["tokens"]
+        initialization = state["initialization"]
         restore_rng(state["rng_states"][rank], generator, device)
     target_step = args.stop_after or args.steps
     if target_step <= step:
         raise ValueError("Target step must exceed the restored step")
     out = Path(args.out)
+    if not args.resume and any((out / name).exists() for name in ("metrics.jsonl", "latest.pt")):
+        raise ValueError("New run requires a fresh output directory")
     out.mkdir(parents=True, exist_ok=True)
     start_tokens, started = tokens, time.perf_counter()
     if rank == 0:
         print(json.dumps({"parameters": sum(p.numel() for p in raw_model.parameters()),
                           "world_size": world, "device": str(device), "torch": str(torch.__version__),
                           "tokens_per_update": args.batch_size * args.seq_len * args.accum * world,
-                          "start_step": step}), flush=True)
+                          "start_step": step, "start_tokens": tokens, "initialization": initialization,
+                          "data_hashes": hashes, "code_sha256": code_sha256(),
+                          "eval_windows_global": args.eval_windows,
+                          "eval_indices_sha256": validation_identity(streams["val"], args)}), flush=True)
     while step < target_step:
         model.train()
         optimizer.zero_grad(set_to_none=True)
@@ -255,15 +309,17 @@ def run(args):
                 dist.all_reduce(average_loss)
                 average_loss /= world
             val_loss = evaluate(raw_model, streams["val"], args, rank, world, device)
-            save_checkpoint(raw_model, optimizer, generator, step, tokens, hashes, args, rank, world, device)
+            save_checkpoint(raw_model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             elapsed = time.perf_counter() - started
             record = {"step": step, "tokens": tokens, "train_loss": average_loss.item(),
-                      "val_loss": val_loss, "ppl": math.exp(min(val_loss, 80)), "lr": lr,
+                      "val_loss": val_loss, "ppl": math.exp(val_loss) if val_loss < 700 else None, "lr": lr,
                       "grad_norm": norm.item(), "elapsed_seconds": elapsed,
                       "tokens_per_second": (tokens - start_tokens) / elapsed,
-                      "eval_batches_per_rank": args.eval_batches}
+                      "eval_windows_global": args.eval_windows,
+                      "eval_indices_sha256": validation_identity(streams["val"], args),
+                      "eval_tokens": args.eval_windows * args.seq_len}
             if rank == 0:
                 with (out / "metrics.jsonl").open("a", encoding="utf8") as handle:
                     handle.write(json.dumps(record) + "\n")

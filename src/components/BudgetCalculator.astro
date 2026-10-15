@@ -2,10 +2,10 @@
   <h3>修改假设，观察预算</h3>
   <p class="note">所有默认值均为教学假设。时间只覆盖所填有效速度代表的工作范围。</p>
   <div class="fields">
-    <label>参数量（B）<input id="budget-n" type="number" min="0.001" max="10000" step="0.1" value="1" /></label>
-    <label>训练 token（B）<input id="budget-d" type="number" min="0.001" max="1000000" step="1" value="20" /></label>
+    <label>参数量（B）<input id="budget-n" type="number" min="0.001" max="10000" step="any" value="1" /></label>
+    <label>训练 token（B）<input id="budget-d" type="number" min="0.001" max="1000000" step="any" value="20" /></label>
     <label>GPU 数量<input id="budget-p" type="number" min="1" max="100000" step="1" value="8" /></label>
-    <label>每卡有效 TFLOP/s<input id="budget-f" type="number" min="0.001" max="100000" step="10" value="100" /></label>
+    <label>每卡有效 TFLOP/s<input id="budget-f" type="number" min="0.001" max="100000" step="any" value="100" /></label>
   </div>
   <output id="budget-result" aria-live="polite">估计训练量 1.20e+20 FLOPs；理想计算时间 41.7 小时。</output>
 </section>

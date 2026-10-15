@@ -13,7 +13,8 @@ title: "附录 B 配置字段与接口约定"
 | `--device` | `cpu` | `cpu` 或 `cuda`；CUDA 需环境支持 |
 | `--steps` | 100 | 整体计划优化器更新次数 |
 | `--stop-after` | 不设 | 本次进程达到指定全局步后停止 |
-| `--resume` | 不设 | 仅加载本项目可信完整检查点 |
+| `--resume` | 不设 | 同代码、同数据、同计划的可信完整快照；格式版本 2 |
+| `--init-weights` | 不设 | 仅继承可信快照的模型权重，建立新优化器、计划、计数与随机流；与 resume 互斥 |
 | `--batch-size` | 4 | 每个数据并行副本的微批量 |
 | `--seq-len` | 64 | 字节 token 上下文长度 |
 | `--accum` | 1 | 每次更新积累多少微批次 |
@@ -25,7 +26,7 @@ title: "附录 B 配置字段与接口约定"
 | `--weight-decay` | 0.1 | AdamW 衰减，教学实现统一应用 |
 | `--clip` | 1.0 | 梯度范数裁剪阈值 |
 | `--eval-every` | 20 | 常规评估和保存间隔 |
-| `--eval-batches` | 4 | 每 rank 验证采样批次数 |
+| `--eval-windows` | 16 | 全局固定验证窗口数，独立于 DP 数量 |
 | `--seed` | 42 | 模型与采样基础种子 |
 | `--threads` | 1 | 每进程 PyTorch CPU 线程数 |
 
@@ -36,13 +37,17 @@ title: "附录 B 配置字段与接口约定"
 | step | 已完成的优化器更新次数 |
 | tokens | 已完成更新消费的全局有效训练 token；包含重复窗口 |
 | train_loss | 最近一次更新中各微批次、rank 的 token 平均损失 |
-| val_loss | 固定验证抽样窗口上的 token 平均损失 |
-| ppl | `exp(val_loss)`，仅在同编码与口径下比较 |
-| tokens_per_second | 本次进程消费 token / 训练循环墙钟时间，包含循环内评估、保存和日志 |
+| val_loss | 同一全局固定窗口列表，按 rank 间隔切分后，NLL 总和 / 有效 token 总数 |
+| ppl | `exp(val_loss)`；若超出实现的指数范围输出 null，不伪造截断 PPL；仅在同编码与口径下比较 |
+| eval_indices_sha256 | 全局有序窗口索引列表的哈希；还须结合验证数据身份、seq-len 和 seed |
+| eval_tokens | 全局验证目标位置数，默认 16×64=1,024 |
+| tokens_per_second | 本进程完成更新消费的 token / 从循环起点到本次保存结束的墙钟时间；含此前日志、评估、保存，不含模型构建和末尾采样 |
 | world_size | 教学 DDP 的副本数；未组合 TP/PP/CP |
 
 ## 检查点约定
 
-保存模型、AdamW、更新步、token、完整配置、代码版本、数据哈希与各 rank 随机状态。加载时检查数据、world size 和影响训练轨迹的核心配置。输出目录、评估频率和提前停止位置可以改变；评估使用独立生成器，不消耗训练采样状态。
+保存模型、AdamW、更新步、token、配置、代码版本与规范化 train.py 哈希、数据身份、初始化来源和各 rank 随机状态。严格恢复核对格式 / 代码身份、数据 / 编码、PyTorch 版本、world size 与核心计划，代码身份缺失也拒绝。Git HEAD 作为来源记录，纯文档提交可不影响相同训练代码。输出目录、验证窗口数 / 频率和提前停止点可改变；这些测量设置不消耗训练随机流，但变化后指标口径可能不再可比。
 
-本示例不支持更换 world size 的严格恢复，不支持修改数据后沿用 `--resume`，也不实现生产分片检查点或持续预训练的权重迁移。
+`--eval-batches` 仅保留作旧命令兼容入口：显式传入时令全局窗口数等于该值×batch-size，不再为每 rank 生成不同窗口；新命令使用 `--eval-windows`。
+
+本示例不支持更换 world size 的严格恢复，不支持修改数据后沿用 `--resume`。`--init-weights` 核对 width/layers/heads/seq-len 与编码，只加载模型、不恢复优化器和 RNG；它不做上下文、词表或生产分片格式转换。新运行输出目录必须没有旧 metrics.jsonl / latest.pt。

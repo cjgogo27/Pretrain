@@ -1,0 +1,16 @@
+<figure class="lesson-diagram" aria-label="TinyPretrain 的 Pre-LayerNorm block，含张量形状和两次残差相加">
+  <figcaption><strong>一个 block：输入与输出都保持 [B, S, 128]</strong></figcaption>
+  <div class="block-row"><span class="shape">X [B,S,128]</span><span>→ LayerNorm₁ → Q/K/V [B,4,S,32] → 因果注意力 → 输出投影</span></div>
+  <p class="residual">↳ 保留 X 的旁路，与注意力结果相加：U = X + Attention(LN₁(X))</p>
+  <div class="block-row"><span class="shape">U [B,S,128]</span><span>→ LayerNorm₂ → Linear [B,S,512] → GELU → Linear [B,S,128]</span></div>
+  <p class="residual">↳ 保留 U 的旁路，与 FFN 结果相加：Y = U + FFN(LN₂(U))</p>
+  <p>注意力在允许的历史位置间交换信息；FFN 对每个位置分别变换。所有相加项的形状必须匹配。</p>
+  <p class="note">数学上的注意力权重形状为 [B,4,S,S]；融合实现未必显式存储整个矩阵。最终 LayerNorm 和 LM Head 位于 block 堆叠之后。</p>
+</figure>
+<style>
+  .lesson-diagram { border: 1px solid var(--sl-color-gray-4); border-radius: .6rem; padding: 1rem; margin-block: 1.5rem; }
+  .block-row { display: grid; grid-template-columns: 9rem 1fr; align-items: center; gap: .8rem; margin-top: 1rem; font-size: .95rem; }
+  .shape { border: 1px solid var(--sl-color-accent); padding: .6rem; border-radius: .3rem; }.residual { border-left: 3px solid var(--sl-color-accent); padding: .5rem .8rem; font-size: .95rem; }
+  .note { color: var(--sl-color-gray-2); font-size: .9rem; }
+  @media (max-width: 34rem) { .block-row { grid-template-columns: 1fr; } }
+</style>

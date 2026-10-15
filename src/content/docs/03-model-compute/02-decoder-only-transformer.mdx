@@ -5,6 +5,7 @@ description: "你把“银行旁边有一棵树”和“把钱存进银行”输
 
 import SectionQA from '../../../components/SectionQA.astro';
 import SystemMap from '../../../components/SystemMap.astro';
+import TransformerBlock from '../../../components/TransformerBlock.astro';
 
 ## 现场问题
 
@@ -35,6 +36,24 @@ $d_h$ 是每个头的维度，$M$ 把不允许访问的位置设为负无穷。�
 | 最终投影 | 从隐藏表示得到词表得分 | 可以与嵌入共享权重 |
 
 本书的 **Decoder-only Transformer** 使用因果自注意力堆叠，不含机器翻译式编码器—解码器之间的交叉注意力。“Decoder-only”说明架构路径，不代表模型只在生成时才会用到。
+
+<TransformerBlock />
+
+取默认 B=4、S=64、d=128，4 个头各有 32 维。LN、注意力输出、两次残差相加都维持 `[4,64,128]`；FFN 中间扩展成 `[4,64,512]`。若相加形状对不上，应先查投影和转置，不要靠广播“修好”。
+
+<details>
+<summary>TinyPretrain 与常见生产部件差在哪里？</summary>
+
+| 维度 | TinyPretrain | 另一种常见选择 | 会改变什么 |
+| --- | --- | --- | --- |
+| 位置 | 可学习绝对位置向量相加 | RoPE 旋转 Q/K | 位置进入网络的方式，需重新验证外推 |
+| 归一化 | LayerNorm，包含去均值 | RMSNorm，按均方根缩放 | 运算、参数与数值行为，不可只换名称 |
+| FFN | 两个 Linear + GELU | SwiGLU 门控的三投影 | 中间维度与参数 / FLOPs 配方 |
+| K/V 头 | 4 个 Q 头、4 个 K/V 头 | GQA 多个 Q 头共享 K/V | K/V 投影与推理缓存开销 |
+
+这些可在 [RoFormer](https://arxiv.org/abs/2104.09864)、[RMSNorm](https://arxiv.org/abs/1910.07467)、[GLU Variants](https://arxiv.org/abs/2002.05202)、[GQA](https://arxiv.org/abs/2305.13245) 中核对。表格不是把它们组合后的复现方案，生产架构的归一化位置和投影配置仍需逐项确认。
+
+</details>
 
 ## 训练为什么能并行，生成为什么常逐步
 

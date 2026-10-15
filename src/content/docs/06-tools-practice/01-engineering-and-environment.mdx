@@ -24,7 +24,9 @@ import SystemMap from '../../../components/SystemMap.astro';
 | `src/components/` | 问答、系统图、预算交互 | 是 |
 | `examples/prepare_data.py` | 原创语料生成与划分 | 是 |
 | `examples/train.py` | 模型、训练、评估与恢复 | 是 |
-| `examples/verify_resume.py` | 连续/恢复一致性检查 | 是 |
+| `examples/verify_resume.py` | 因果性、严格恢复拒绝与仅权重初始化检查 | 是 |
+| `examples/verify_ddp.py` | 固定样本两进程 CPU 数值对照 | 是 |
+| `examples/results/cpu-reference.json` | 本轮配置、身份、实测数值与生成片段 | 是 |
 | `runs/` | 语料副本、日志、检查点 | 否，默认忽略 |
 
 ## 两套环境各负其责
@@ -41,15 +43,24 @@ Windows PowerShell 激活用 `.\.venv\Scripts\Activate.ps1`，Linux/macOS 用 `s
 
 ```bash
 python -m pip install -r examples/requirements.txt
+```
+
+这已足够运行下面的小模型路线。只有要构建或维护网站时，才另外准备 Node.js 与文档依赖：
+
+```bash
 node --version
 npm ci
 npm run check:docs
 npm run build
 ```
 
+## 最短运行路径只需训练依赖
+
+在仓库根目录，用虚拟环境中的 Python 完成安装，再运行 `python examples/prepare_data.py --out runs/data`、`python examples/train.py --data runs/data --out runs/tiny --steps 100`、`python examples/verify_resume.py`。不需要先执行 npm 命令。成功会有数据清单、metrics.jsonl、latest.pt、sample.txt 和验证 PASS；若找不到 torch，先核对正在使用的解释器与 pip 是否属于同一环境。详细成功条件与常见失败在 6.2。
+
 ## 配置要跟着产物走
 
-每个检查点保存完整 CLI 配置、代码版本、数据指纹与 PyTorch 版本。日志采用逐行 JSON，明确 loss、学习率、更新步与消费 token。恢复要求关键训练配置一致，输出目录可以改变。
+每个检查点保存 CLI 配置、代码版本与规范化源码哈希、数据指纹、初始化来源和 PyTorch 版本。严格恢复实际核对代码身份，而不只是记录它。日志采用逐行 JSON，明确 loss、学习率、更新步与消费 token。恢复要求关键训练配置一致，输出目录可以改变。
 
 > **一句话听懂**：一个可运行的项目不仅有代码，还要能回答“用什么环境、什么输入、什么配置产生了这个结果”。
 

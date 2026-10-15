@@ -9,6 +9,8 @@ async function walk(dir) {
 const files = (await walk(root)).filter(file => /\.mdx?$/.test(file));
 const routes = new Set(files.map(file => '/Pretrain/' + path.relative(root, file).replaceAll('\\', '/').replace(/\.mdx?$/, '').replace(/^index$/, '') + '/'));
 routes.add('/Pretrain/');
+const publicRoot = path.resolve('public');
+for (const file of await walk(publicRoot)) routes.add('/Pretrain/' + path.relative(publicRoot, file).replaceAll('\\', '/'));
 const qa = JSON.parse(await readFile('src/data/section-qa.json', 'utf8'));
 const chapters = JSON.parse(await readFile('src/data/chapters.json', 'utf8'));
 const errors = [];

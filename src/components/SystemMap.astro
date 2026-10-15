@@ -1,16 +1,33 @@
----
-const steps = [
-  ['语料与质量层', '原始文档 → 清洗、去重、切分与配比', '文档、来源、划分、数据版本', '#8b5cf6'],
-  ['分词与批次层', '文本 → token ID → 定长输入与右移标签', 'input_ids / labels / loss_mask', '#3b82f6'],
-  ['模型前向层', '嵌入、因果注意力、前馈网络 → 词表得分', 'logits：批次 × 序列 × 词表', '#14b8a6'],
-  ['损失与反向层', '比较下一 token，计算损失和参数梯度', '有效 token 的平均损失、梯度', '#f59e0b'],
-  ['参数更新层', '梯度同步、裁剪、优化器与学习率调度', '新权重、优化器状态、训练步数', '#f43f5e'],
-  ['检查点与评估层', '保存可恢复状态，评估未见数据与能力', '检查点、指标、诊断与交付版本', '#a78bfa'],
-];
----
-<figure class="system-map" aria-label="预训练系统分层与反馈架构图">
-  <figcaption><strong>从文本到权重：预训练系统总图</strong></figcaption>
-  <ol>{steps.map(([name, work, output, color]) => <li style={`--map-color:${color}`}><strong>{name}</strong>{work}<br/><small>交接：{output}</small></li>)}</ol>
-  <p><strong>两个不同的反馈周期</strong>每一步：梯度 → 参数更新 → 下一步前向。阶段性：验证指标 → 人工或受控实验 → 下一版训练方案。</p>
-  <div class="infra"><span>计算与存储<br/>GPU · CPU · 网络 · 数据分片</span><span>分布式通信<br/>进程组 · AllReduce · 状态分片</span><span>可观测性<br/>损失 · 吞吐 · 梯度 · 异常日志</span><span>可复现配置<br/>数据 · 分词器 · 代码 · 环境 · 随机状态</span></div>
+<figure class="system-map" aria-label="预训练的数据准备、训练循环、阶段性评估和共用支撑">
+  <figcaption><strong>同一份数据，三种执行节奏</strong></figcaption>
+  <section class="map-zone offline">
+    <h3>① 离线准备 · 数据版本改变时重建</h3>
+    <p>原始文档 → 清洗、去重、按文档划分 → UTF-8 字节 ID + EOS</p>
+    <p class="handoff">交接物：训练 / 验证 token 流、数据哈希、编码约定</p>
+  </section>
+  <div class="map-arrow">↓ 训练流供给批次 ／ 验证流单独保留</div>
+  <section class="map-zone loop">
+    <h3>② 训练循环 · A 个微批次组成一次更新</h3>
+    <div class="map-flow"><span>取窗与右移标签<br/><small>input_ids / labels / loss_mask</small></span><b aria-hidden="true">→</b><span>因果前向<br/><small>logits [B, S, V]</small></span><b aria-hidden="true">→</b><span>token loss → 反向<br/><small>每微批次累加梯度</small></span></div>
+    <p>完成 A 次 → DDP 最后一次反向完成归约 → 范数检查与裁剪 → AdamW 更新 → 下一组微批次 ↺</p>
+    <p class="handoff">固定长度、无忽略位置：Δtokens = B × S × A × DP；step 仅在更新完成后 +1。</p>
+  </section>
+  <div class="map-arrow">↓ 指定更新边界读取 / 保存状态</div>
+  <section class="map-zone evaluation">
+    <h3>③ 阶段性评估与检查点 · 两个独立产物</h3>
+    <p>固定验证窗口 + 当前权重 → 无梯度评估 → 指标报告（权重步数、数据与窗口身份）</p>
+    <p>权重 + 优化器 + 计划 + 计数 + 代码 / 数据身份 + 各 rank 随机状态 → 可恢复快照</p>
+    <p class="handoff">教学代码同步评估；生产中可异步测量冻结版本。评估反馈 → 受控实验 → 下一版方案，不进入本步反向。</p>
+  </section>
+  <div class="infra"><span>计算与存储<br/>CPU / GPU、token 分片、检查点文件</span><span>通信<br/>进程组、梯度归约、状态汇集</span><span>日志<br/>样本身份、有效 token、loss、梯度、更新步</span><span>配置与版本<br/>代码、数据、编码、环境、计划、随机状态</span></div>
+  <p><small>一个框架可服务多个模块，一个模块也可跨设备；共用支撑不构成固定的业务功能层。</small></p>
 </figure>
+<style>
+  .map-zone { border: 1px solid var(--sl-color-gray-4); border-left: 5px solid var(--sl-color-accent); padding: .8rem 1rem; border-radius: .4rem; margin-block: .7rem; }
+  .offline { border-left-color: #8b5cf6; }.loop { border-left-color: #0d9488; }.evaluation { border-left-color: #d97706; }
+  h3 { font-size: 1.05rem; margin: 0 0 .5rem; } p { font-size: .98rem; margin-block: .5rem; }
+  .handoff { color: var(--sl-color-gray-2); } .map-arrow { text-align: center; font-size: .9rem; }
+  .map-flow { display: flex; gap: .5rem; align-items: center; }.map-flow span { flex: 1; background: var(--sl-color-bg); padding: .5rem; border-radius: .3rem; font-size: .95rem; }
+  .map-flow small { color: var(--sl-color-gray-2); }.infra { margin-top: 1rem; }
+  @media (max-width: 40rem) { .map-flow { flex-direction: column; align-items: stretch; }.map-flow b { transform: rotate(90deg); align-self: center; } }
+</style>

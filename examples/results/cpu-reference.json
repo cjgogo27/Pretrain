@@ -1,0 +1,191 @@
+{
+  "date": "2026-10-15",
+  "purpose": "mechanism-only; not a language capability benchmark",
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.5",
+    "torch": "2.11.0+cpu",
+    "precision": "FP32",
+    "threads": 1
+  },
+  "code_sha256": "1aa57e7ad787e8446db35a25883864381e645800222a3fcba0eee7db2fe53c6b",
+  "base_git_revision_at_execution": "53a23ae09156e5f2ef0384c25e278a7a4440cdc6",
+  "working_tree_modified_at_execution": true,
+  "config": {
+    "device": "cpu",
+    "stop_after": null,
+    "steps": 100,
+    "batch_size": 4,
+    "seq_len": 64,
+    "accum": 1,
+    "width": 128,
+    "layers": 2,
+    "heads": 4,
+    "warmup": 10,
+    "eval_every": 20,
+    "eval_windows": 16,
+    "seed": 42,
+    "threads": 1,
+    "eval_batches": null,
+    "lr": 0.0003,
+    "weight_decay": 0.1,
+    "clip": 1.0
+  },
+  "parameters": 437888,
+  "tokens_per_update": 256,
+  "data_hashes": {
+    "train.txt": "bac2f0db67cb88152eb68d643c5cf89662c281771b1f0447988135df24641c44",
+    "val.txt": "ff8786edacddc40b64ed5e3107b876df75fe23bbad4706574127189681d20700",
+    "tokenizer": "utf8-bytes-0-255,eos-256"
+  },
+  "validation_indices": [
+    7849,
+    868,
+    10358,
+    4117,
+    10850,
+    7512,
+    10182,
+    447,
+    10642,
+    7317,
+    5916,
+    67,
+    1807,
+    565,
+    3763,
+    11108
+  ],
+  "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
+  "metrics": [
+    {
+      "step": 20,
+      "tokens": 5120,
+      "train_loss": 4.748636245727539,
+      "val_loss": 4.68248450756073,
+      "ppl": 108.03816102751844,
+      "lr": 0.00029185850380609757,
+      "grad_norm": 1.9220445156097412,
+      "eval_tokens": 1024
+    },
+    {
+      "step": 40,
+      "tokens": 10240,
+      "train_loss": 4.109130382537842,
+      "val_loss": 4.074327766895294,
+      "ppl": 58.810932641276985,
+      "lr": 0.00023249999999999999,
+      "grad_norm": 1.8167004585266113,
+      "eval_tokens": 1024
+    },
+    {
+      "step": 60,
+      "tokens": 15360,
+      "train_loss": 3.588484764099121,
+      "val_loss": 3.687629997730255,
+      "ppl": 39.95005295447805,
+      "lr": 0.0001415574960149644,
+      "grad_norm": 2.2318806648254395,
+      "eval_tokens": 1024
+    },
+    {
+      "step": 80,
+      "tokens": 20480,
+      "train_loss": 3.6029298305511475,
+      "val_loss": 3.51210880279541,
+      "ppl": 33.518878009903005,
+      "lr": 6.158400017893799e-05,
+      "grad_norm": 2.198925018310547,
+      "eval_tokens": 1024
+    },
+    {
+      "step": 100,
+      "tokens": 25600,
+      "train_loss": 3.6876344680786133,
+      "val_loss": 3.44255793094635,
+      "ppl": 31.266834369081057,
+      "lr": 2.9999999999999997e-05,
+      "grad_norm": 1.756735920906067,
+      "eval_tokens": 1024
+    }
+  ],
+  "generated_sample": "预训练k�\u001e��Ѡ�\u0005癣\n~��۩��� �A��u�\u001b��[��ny\u001f��Ҟ�����n�\u000f\\k�ن\n$�\u001f@ţe+���)\u0011ĸ�S�r�\u0005br1",
+  "sample_settings": {
+    "prompt": "预训练",
+    "new_byte_tokens": 80,
+    "seed": 200042,
+    "temperature": 1,
+    "decode_errors": "replace"
+  },
+  "resume_checks": {
+    "status": "PASS",
+    "checks": [
+      "causal_future_invariance",
+      "output_shape",
+      "exact_cpu_model_and_optimizer_resume",
+      "rng_and_sampler_resume",
+      "global_token_count",
+      "changed_data_rejected",
+      "changed_lr_code_rejected",
+      "missing_code_identity_rejected",
+      "changed_world_size_rejected",
+      "changed_torch_version_rejected",
+      "changed_plan_rejected",
+      "weights_only_new_run_resets_state"
+    ],
+    "steps": 12,
+    "tokens": 768,
+    "torch": "2.11.0+cpu"
+  },
+  "ddp_comparison": {
+    "status": "PASS",
+    "torch": "2.11.0+cpu",
+    "backend": "gloo-tcp-use_libuv_false",
+    "world_size": 2,
+    "rank_valid_tokens": [
+      100,
+      900
+    ],
+    "atol": 1e-06,
+    "rtol": 0.0001,
+    "gradient_max_abs_error": 1.4901161193847656e-08,
+    "update_max_abs_error": 1.0496507485413531e-07,
+    "validation_max_abs_error": 1.9073486345888568e-07,
+    "eval_windows_global": 8,
+    "eval_indices_sha256": "365a79d4744aba5192389bf45835fef92c259f24f618d6d39e318c39649e7297"
+  },
+  "weights_only_new_run": {
+    "startup": {
+      "parameters": 437888,
+      "world_size": 1,
+      "device": "cpu",
+      "torch": "2.11.0+cpu",
+      "tokens_per_update": 256,
+      "start_step": 0,
+      "start_tokens": 0,
+      "initialization": {
+        "kind": "weights_only",
+        "source_step": 100,
+        "source_tokens": 25600,
+        "source_checkpoint_sha256": "435ff1c2b9d00c75d93d6693b1576da1c42a7cb31b54ca60eab585b9b9ceac99"
+      },
+      "data_hashes": {
+        "train.txt": "bac2f0db67cb88152eb68d643c5cf89662c281771b1f0447988135df24641c44",
+        "val.txt": "ff8786edacddc40b64ed5e3107b876df75fe23bbad4706574127189681d20700",
+        "tokenizer": "utf8-bytes-0-255,eos-256"
+      },
+      "code_sha256": "1aa57e7ad787e8446db35a25883864381e645800222a3fcba0eee7db2fe53c6b",
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8"
+    },
+    "final_step": 20,
+    "final_tokens": 5120,
+    "validation_loss": 3.360415041446686,
+    "same_data_as_stage1": true
+  },
+  "supporting_code_sha256": {
+    "prepare_data.py": "727b963d9eca26ee1a665407f60abcf904199168b717032910573a1778b37099",
+    "verify_resume.py": "3871a1a15fe530dbfb0c5d78571a30275ba3ad5a5b72b00b39b5ca3659793741",
+    "verify_ddp.py": "56b5d268402a076e59f5894c31eecb80b0652b262142b050d6fd37bc093e84c4"
+  }
+}

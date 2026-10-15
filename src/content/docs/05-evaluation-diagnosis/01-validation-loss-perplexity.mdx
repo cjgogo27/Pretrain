@@ -39,7 +39,7 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 分别累计每个 rank 的负对数似然总和与有效 token 数，然后全局求和相除。若不同 rank 或批次 token 数不同，不能简单平均局部平均值。长文本滑动窗口评估还要说明重叠部分是否重复计入。
 
-教学脚本使用固定种子的验证窗口，按每个批次相同长度采样并汇总。它测量的是固定抽样窗口上的估计值，窗口可重叠，不是对全部验证 token 的不重复穷举；日志明确记录采样批次数。
+教学脚本用一个固定种子生成全局 16 个窗口索引，所有 rank 得到同一列表，再按 `indices[rank::world_size]` 分配；每个索引只分给一个 rank，局部 NLL 总和与 token 数再全局求和。改变 DP 数不改变这份全局窗口集合。窗口本身仍可能重叠或重复，所以不是对全部验证 token 的不重复穷举；日志保存 `eval_windows_global`、`eval_tokens` 和 `eval_indices_sha256`，比较时还应核对验证数据哈希、长度和编码。
 
 ## 低损失之后还要看什么
 

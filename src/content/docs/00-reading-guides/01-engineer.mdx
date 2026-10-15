@@ -17,6 +17,8 @@ title: "跨部门工程师阅读路线"
 
 运行 [6.2 最小实验](/Pretrain/06-tools-practice/02-minimal-pretraining/)，打开 `metrics.jsonl`，对照输入、更新和保存过程。重点做一次暂停恢复与一次数据变更后的拒绝恢复验证。
 
+再运行 `python examples/verify_ddp.py`，核对 100 / 900 个有效 token 下的单进程与两 rank 梯度、更新和固定窗口 loss。它是数值对照，不是扩展性能测试。阶段切换时按[训练阶段怎样连接](/Pretrain/00-reading-guides/04-training-stages/)记录数据、lr、长度、检查点和评估身份；只加载权重的新阶段使用 6.4 的入口。
+
 每节的“工程师”问题检查接口与实现；学生问题补概念，产品/PR 问题帮助跨部门沟通。回答不出时回到系统图，沿交接的数据查，而不是先猜框架参数。
 
 ## 推荐实践清单

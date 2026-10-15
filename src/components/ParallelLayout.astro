@@ -1,0 +1,16 @@
+<figure class="parallel-layout" aria-label="八张设备组成 DP二乘TP二乘PP二的示意布局">
+  <figcaption><strong>总设备 8 = DP 2 × TP 2 × PP 2（CP=1）</strong></figcaption>
+  <div class="replicas">
+    {[0, 1].map(dp => <section class="replica"><h3>数据副本 {dp} · 一套逻辑模型</h3>
+      {[0, 1].map(pp => <div class="stage"><strong>PP 阶段 {pp}：第 {pp * 6}–{pp * 6 + 5} 层</strong><div class="devices">{[0, 1].map(tp => <span>设备 {dp * 4 + pp * 2 + tp}<br/>TP 分片 {tp}</span>)}</div>{pp === 0 && <p class="arrow">↓ 前向激活 ／ ↑ 反向梯度</p>}</div>)}
+    </section>)}
+  </div>
+  <p>同层内的两张设备共同执行张量分片；同一列的两阶段按前后依赖传递激活 / 梯度。</p>
+  <p>数据并行组连接对应分片：(0,4)、(1,5)、(2,6)、(3,7)。两个逻辑副本读不同数据；全局批量乘 DP=2，不乘总设备数 8。</p>
+</figure>
+<style>
+  .parallel-layout { border: 1px solid var(--sl-color-gray-4); border-radius: .6rem; padding: 1rem; margin-block: 1.5rem; font-size: .95rem; }
+  .replicas { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .8rem; }.replica { border: 1px dashed var(--sl-color-gray-4); border-radius: .3rem; padding: .7rem; }
+  h3 { font-size: 1rem; margin-top: 0; }.stage > strong { display: block; margin-top: .6rem; }.devices { display: flex; gap: .5rem; margin-top: .5rem; }.devices span { flex: 1; padding: .6rem; background: var(--sl-color-accent-low); border-radius: .3rem; text-align: center; }.arrow { font-size: .8rem; }
+  @media (max-width: 36rem) { .replicas { grid-template-columns: 1fr; } }
+</style>

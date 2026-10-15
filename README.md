@@ -26,16 +26,26 @@
 
 ```mermaid
 flowchart TD
-  A[原始文档] --> B[清洗、去重与划分]
-  B --> C[分词、打包与批次]
-  C --> D[模型前向]
-  D --> E[损失与反向]
-  E --> F[同步、裁剪与参数更新]
-  F --> D
-  F --> G[检查点与评估]
-  G -.阶段性实验反馈.-> B
-  H[计算、通信、存储、日志与版本] -.横向基础设施.-> C
-  H -.-> F
+  subgraph OFF[离线：数据版本改变时]
+    A[原始文档] --> B[清洗、去重、文档划分] --> C[编码、清单与训练/验证流]
+  end
+  subgraph LOOP[训练循环]
+    D[取窗、右移标签与有效位置] --> E[因果前向、损失、反向]
+    E --> F{累积完成}
+    F -->|否| D
+    F -->|是| G[梯度归约、裁剪与更新]
+    G --> D
+  end
+  C --> D
+  subgraph STAGE[指定边界：两个独立产物]
+    J[固定窗口评估报告]
+    K[全状态检查点]
+  end
+  G -.-> J
+  G -.-> K
+  C -.验证流.-> J
+  J -.受控实验反馈.-> P[下一版训练方案]
+  H[计算、存储、通信、日志与版本] -.共用支撑.-> LOOP
 ```
 
 ## 本地阅读网站
@@ -66,9 +76,14 @@ python -m pip install -r examples/requirements.txt
 python examples/prepare_data.py --out runs/data
 python examples/train.py --data runs/data --out runs/tiny --steps 100
 python examples/verify_resume.py
+python examples/verify_ddp.py
 ```
 
 默认模型包含 437,888 个共享权重去重后的可训练参数，使用原创短文本和 UTF-8 单字节词表。示例不下载语料或预训练模型。运行产物保存在忽略的 `runs/` 中。
+
+本轮修订增加真实字节案例、两种 mask、带形状的 block 图、有效 token 加权、DP/TP/PP 布局和[阶段连接导读](https://cjgogo27.github.io/Pretrain/00-reading-guides/04-training-stages/)。[CPU 参考产物](examples/results/cpu-reference.json)包含配置、数据与代码身份、实测 loss 和生成片段。严格恢复检查规范化 train.py 哈希，改代码后拒绝；新阶段可以用 `--init-weights` 只加载权重并重建优化器与计数。
+
+`verify_ddp.py` 使用显式 `TCPStore(use_libuv=False)` 和两进程 Gloo，比较固定样本梯度、一次更新与同一验证集合。它不验证 CUDA、多机、完整 DDP 长跑或生产吞吐。关键引用支持范围见 [SOURCE_AUDIT.md](SOURCE_AUDIT.md)。
 
 它用于机制学习，**不代表通用大模型能力**。预算章节的 1B 模型、20B token 和设备速度均为单独标注的假设。实际检查与限制见 [VALIDATION.md](VALIDATION.md)，示例边界见 [模型卡](examples/MODEL_CARD.md)。
 

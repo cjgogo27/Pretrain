@@ -21,7 +21,7 @@ import SystemMap from '../../../components/SystemMap.astro';
 Linux 的两张 CUDA GPU 示例：
 
 ```bash
-torchrun --standalone --nproc_per_node=2 examples/train.py --device cuda --data runs/data --out runs/ddp --steps 100 --batch-size 2 --accum 2
+torchrun --standalone --nproc_per_node=2 examples/train.py --device cuda --data runs/data --out runs/ddp --steps 100 --batch-size 2 --accum 2 --eval-windows 16
 ```
 
 此命令使用 NCCL，前提是环境、驱动、PyTorch 构建和设备可用。Windows 原生不提供 NCCL，GPU 多卡请使用支持的 Linux / WSL 环境；本项目不声称已验证 CUDA 多卡。CPU 通信机制可用 `--device cpu` 和 Gloo 做本机小测试。
@@ -45,6 +45,28 @@ torchrun --standalone --nproc_per_node=2 examples/train.py --device cuda --data 
 在可控数据和配置上验证参数初始一致、每步都完成同步、各副本权重相同、token 计数正确、暂停恢复可加载。分布式归约顺序可能产生浮点差异，不应要求与不同并行布局逐位相同。
 
 教学脚本在每次保存时收集每个 rank 的随机状态。恢复要求相同 world size；改卡数继续训练属于重新规划数据与批量的迁移场景，不在严格恢复范围内。
+
+## 固定样本数值对照：本轮已运行的 CPU 两进程测试
+
+```bash
+python examples/verify_ddp.py
+```
+
+不需要下载数据。脚本固定模型初始化和 100 个长度 10 的输入窗口：rank 0 分到 10 个窗口（100 有效 token），rank 1 分到 90 个（900 token）。单进程在全部 1,000 token 上求平均；DDP 每 rank 用 `2×local_loss_sum/1000` 反向，与 [4.1](/Pretrain/04-training-distributed/01-loss-and-gradients/)相同的归约假设对应。之后各自执行一次相同 AdamW 更新，未加入裁剪或 AMP，以隔离归约问题。
+
+| 实测比较（Windows / PyTorch 2.11 CPU） | 最大绝对差 |
+| --- | --- |
+| 全参数梯度 | 1.490e-08 |
+| 一次 AdamW 后的参数 | 1.050e-07 |
+| 固定验证窗口的平均 loss | 1.907e-07 |
+
+成功条件为梯度与更新 `atol=1e-6, rtol=1e-4`，验证 loss 绝对差不超过 `1e-6`，且两 rank 的窗口身份与单进程相同。脚本对**全部参数**逐项检查，不只比较一个总 loss。
+
+验证索引由一个全局种子生成，共 8 个窗口；单进程读取全部，两进程分别读取 `indices[0::2]` 与 `indices[1::2]`，最后按 NLL 总和 / 有效 token 总数汇总。每个索引只分配一次，不代表窗口内容没有重叠。
+
+本机 `torchrun` 默认 TCPStore 受 libuv 支持限制；该对照脚本显式创建 `TCPStore(use_libuv=False)` 并启动两个 Gloo 进程。运行中出现地址连接重试警告，最终完成并通过。成功会打印 `status: PASS` 和误差；若构建无 Gloo、端口不可用或超时，应保留错误，不能把它记为通过。
+
+产物是终端 JSON 和测试自己的临时文件（结束时清理）。它证明该固定样本、单步数值路径在这套 CPU 环境等价；**没有验证完整多步 DDP 训练 / 恢复，也没有验证 CUDA、NCCL、多机或扩展性能**。
 
 ## 然后再测扩展效率
 

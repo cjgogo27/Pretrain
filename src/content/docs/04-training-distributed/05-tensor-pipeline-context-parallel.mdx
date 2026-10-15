@@ -5,6 +5,7 @@ description: "状态分片后仍然显存紧张；另一个实验里，模型能
 
 import SectionQA from '../../../components/SectionQA.astro';
 import SystemMap from '../../../components/SystemMap.astro';
+import ParallelLayout from '../../../components/ParallelLayout.astro';
 
 ## 现场问题
 
@@ -26,6 +27,14 @@ import SystemMap from '../../../components/SystemMap.astro';
 | DP | 完整训练副本 | 梯度归约或状态交换 | 全局批量与同步开销 |
 
 它们可以组合，但乘法关系必须符合框架的进程组定义。例如在彼此独立的维度中 $\text{world size}=DP\times TP\times PP\times CP$；某些实现将特定分片组嵌套或复用，不能不看配置就套这个式子。
+
+## 八张设备，只有两个数据副本
+
+假设 12 个 block，TP=2、PP=2、DP=2、CP=1，采用彼此独立的并行维度。这是布局示意，没有速度测量：
+
+<ParallelLayout />
+
+每数据副本微批量 B=2、S=1024、累积 A=4，更新消费 `2×1024×4×2=16,384` 个 token。错误乘总设备数 8 会夸大四倍；TP 和 PP 在共同完成同一逻辑模型的计算，不各自提供独立数据副本。实际框架可能有不同进程组嵌套方式，应按配置确认。
 
 ## 为什么流水线会有气泡
 

@@ -22,6 +22,7 @@ jobs:
       - run: npm ci
       - run: npm run check:docs
       - run: npm run build
+      - run: npm run check:built
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

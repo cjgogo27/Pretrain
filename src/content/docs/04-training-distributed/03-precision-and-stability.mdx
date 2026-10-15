@@ -35,6 +35,30 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 > **一句话听懂**：混合精度决定哪些数怎样表示，裁剪限制更新前的梯度大小，日志负责说明异常何时、在哪批数据上发生。
 
+## 把一次更新的顺序完整写出来
+
+以单优化器、普通 DDP 完整副本、FP16 GradScaler 为例，下表是**机制说明，TinyPretrain 仍只实现 FP32**：
+
+| 时机 | 操作 | 需要保持的约定 |
+| --- | --- | --- |
+| 开始本次更新 | 清零梯度、确定本次有效 token 分母 | 全局有效数覆盖全部累积材料 |
+| 每微批次 | autocast 前向、归一化 loss、`scaler.scale(loss).backward()` | 整次累积使用同一 scale；前 A−1 次 `no_sync()` 覆盖前向和反向 |
+| 最后一次反向 | DDP 按约定归约梯度 | 所有 rank 集合通信次序一致 |
+| 全部累积结束 | `scaler.unscale_(optimizer)`，仅一次 | 先恢复真实梯度尺度，再检查 / 裁剪 |
+| 更新边界 | 完整梯度范数裁剪；`scaler.step(optimizer)` | 若检测到 Inf/NaN，scaler 可能跳过 optimizer.step |
+| 更新边界结束 | `scaler.update()`；确认是否真正更新 | 按成功更新计数的 step 与调度器，仅在更新发生时前进 |
+
+单优化器的标准动态缩放中，更新前后 scale 下降可作为溢出跳过的信号；不能用 `scaler.step()` 的返回值是否为 None 判断成功，因为许多优化器成功时也返回 None。多优化器或其他 scaler 实现应使用其明确的更新状态接口。[PyTorch 的梯度累积 / 裁剪说明](https://docs.pytorch.org/docs/2.11/notes/amp_examples.html#gradient-accumulation)要求同一有效批量内 scale 保持一致。
+
+若第 12 次尝试因溢出跳过，已消费的数据和算力仍然发生，但成功更新数不增加。本书默认 FP32 异常即停止，因此 `tokens` 只累计已完成更新的消费量。AMP 工程最好另外记录 consumed-tokens、successful-updates 与 skipped-updates；按 token 调度还是按成功更新调度必须预先定义，并让日志和恢复一致。
+
+<details>
+<summary>为什么完整副本裁剪不能直接推广到状态分片？</summary>
+
+普通 DDP 归约后每 rank 有完整梯度，范数可在本地完整参数上计算。FSDP / ZeRO 等方案可能只保留梯度分片，单 rank 的局部范数不等于全模型范数；TP 还要区分分片和重复参数，避免重复计数。应使用所用版本提供的分布式范数 / 裁剪机制，并核对参与组，不把本书 `clip_grad_norm_(model.parameters())` 当作任意布局的通用指令。
+
+</details>
+
 ## 用最近证据缩小范围
 
 出现 NaN 时记录最早异常的 loss、梯度和批次，而不是等它传播到权重之后。核对学习率、恢复后的状态、标签范围、掩码是否让某行没有可见位置，以及数据中是否出现异常样本。必要时短暂用 FP32 重跑同一小批次，比较异常是否依旧。
