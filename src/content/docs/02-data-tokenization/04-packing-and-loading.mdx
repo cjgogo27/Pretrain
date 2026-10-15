@@ -1,0 +1,55 @@
+---
+title: "2.4 怎样喂给模型：序列打包、标签与数据加载"
+description: "训练程序跑得很快，loss 也很低。检查标签才发现，每个位置的目标就是它自己；模型只需要把输入照抄出来。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+训练程序跑得很快，loss 也很低。检查标签才发现，每个位置的目标就是它自己；模型只需要把输入照抄出来。
+
+> 输入、标签和注意力掩码，到底应该错开哪一位？
+
+<SectionQA id="2.4" mode="ask" />
+
+## 先把右移关系写出来
+
+对 token 流 `[A, B, C, D, E]`，长度为 4 的输入是 `[A, B, C, D]`，目标是 `[B, C, D, E]`。第一个位置看到 A，预测 B；最后一个位置看到 A 到 D，预测 E。若实现已在模型内部移动标签，外部再次移动就会错两位，必须确认接口契约。
+
+**因果掩码（Causal Mask）**阻止一个位置查看未来输入。没有它，预测 B 的位置可能直接看到 B。标签右移和因果掩码解决的是不同问题，二者都需要正确。
+
+## Packing 不只是拼起来
+
+**序列打包（Sequence Packing）**把短文档组合成较满的序列，减少 padding。文档之间通常插入 EOS，但 EOS 本身只是一个符号，不自动阻止注意力跨文档传播。
+
+| 策略 | 边界如何处理 | 优势 | 需要决定什么 |
+| --- | --- | --- | --- |
+| 每文档单独 padding | 短文档补齐 | 结构直观 | padding 不计入损失 |
+| 连续拼接 | EOS 后接下一文档 | 利用率高 | 是否允许跨文档注意力 |
+| 分段 / 块对角 attention | 文档之间隔离 | 边界更明确 | 框架与内核是否支持 |
+
+位置 ID 是否重置、EOS 是否计入损失、跨边界目标是否保留，也应写进数据规范。不存在适用于全部训练目标的唯一打包方案。
+
+## 有效 token 才是归一化分母
+
+若有效位置集合为 $M$，token 平均损失是 $L=\sum_{i\in M}\ell_i/|M|$。有 padding 时，不能用整块张量位置数代替 $|M|$。多个微批次的有效 token 不同，直接平均它们的平均 loss 也会改变权重。
+
+固定长度、无 padding 的教学实验中，每个微批次的有效 token 相同，按累积次数缩放损失即可。生产变长训练应对整次更新按有效 token 总数加权，并检查分布式归约的均值语义。
+
+> **一句话听懂**：一个批次的正确性取决于 token、目标、可见范围和损失分母是否对应，而不只是张量形状能对上。
+
+## 数据加载决定 GPU 是否在等待
+
+大规模数据通常先离线分词，再存成可顺序读取的分片。运行时做预取、分布式切片和批次构造。要记录分片、偏移、shuffle 状态与抽样种子，才能判断恢复后是否跳过或重复样本。
+
+TinyPretrain 为了便于学习，把每个划分串联成字节流后随机取窗口，显式构造输入与右移标签。它允许 EOS 两侧注意力相连，且用有放回随机窗口采样；“累计训练 token”因此不等于“唯一语料 token”。
+
+<SectionQA id="2.4" mode="answer" />
+
+## 参考资料
+
+[1] [PyTorch CrossEntropyLoss](https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html)。类别目标、忽略位置与归约。
+
+[2] [PyTorch DataLoader](https://docs.pytorch.org/docs/stable/data.html)。数据加载、采样和进程行为。

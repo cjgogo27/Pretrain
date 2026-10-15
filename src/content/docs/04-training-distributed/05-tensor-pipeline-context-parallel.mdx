@@ -1,0 +1,52 @@
+---
+title: "4.5 一个模型怎样拆开：张量、流水线与上下文并行"
+description: "状态分片后仍然显存紧张；另一个实验里，模型能放下，但长序列激活又超过上限。团队开始讨论 TP、PP 和 CP。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+状态分片后仍然显存紧张；另一个实验里，模型能放下，但长序列激活又超过上限。团队开始讨论 TP、PP 和 CP。
+
+> 这些并行方式拆的是同一样东西吗？
+
+<SectionQA id="4.5" mode="ask" />
+
+## 先问到底哪一部分放不下
+
+**张量并行（Tensor Parallelism，TP）**把层内矩阵或计算沿维度分到不同设备；**流水线并行（Pipeline Parallelism，PP）**把不同层安排在不同阶段；**上下文并行（Context Parallelism，CP）**把序列位置及其相关计算分布到设备。框架中 sequence parallel 的具体含义可能不同，应核对操作和分片范围。
+
+| 方式 | 主要拆什么 | 常见通信 | 典型约束 |
+| --- | --- | --- | --- |
+| TP | 层内投影与矩阵计算 | 层内 AllReduce / AllGather 等 | 高频通信，依赖低延迟带宽 |
+| PP | 层与阶段 | 相邻阶段激活与梯度 | 流水线气泡和负载不均 |
+| CP | 序列维度相关工作 | 分布式注意力需要交换 K/V 等 | 长上下文通信与掩码正确性 |
+| DP | 完整训练副本 | 梯度归约或状态交换 | 全局批量与同步开销 |
+
+它们可以组合，但乘法关系必须符合框架的进程组定义。例如在彼此独立的维度中 $\text{world size}=DP\times TP\times PP\times CP$；某些实现将特定分片组嵌套或复用，不能不看配置就套这个式子。
+
+## 为什么流水线会有气泡
+
+前一阶段还没产出激活时，后一阶段只能等待；反向也有相反方向的依赖。把一个大批次分成多个微批次，可以让不同阶段同时处理不同微批次，但开始和结束仍有填充/排空成本。阶段算量不均也会让最快的设备等最慢的阶段。
+
+为了减少气泡而增加微批次数，会影响累积、内存和调度。PP 的 micro-batch 与优化器全局批量需一起计算，不能用一个术语替代所有计数。
+
+> **一句话听懂**：TP 拆层内计算，PP 拆层间路径，CP 拆长序列工作；先明确瓶颈，才能选择拆哪里。
+
+## 并行拓扑也要贴着硬件
+
+高频 TP 通信通常更适合快速互联的设备组，跨较慢网络则更容易被通信限制。实际性能还取决于算子大小、重叠、网络拥塞和集合通信实现。不要只按总 GPU 数规划并行度。
+
+在小模型上强行使用很多 TP 或 PP，可能让每卡计算太少，通信和调度占比更大。先记录峰值、算子耗时和通信时间，再比较候选布局。
+
+TinyPretrain 仅实现 DDP，未实现 TP、PP 或 CP。本节用来理解生产训练框架的配置与日志；若使用 Megatron Core 等工具，应从官方示例开始，在短跑中验证数值、吞吐和恢复能力。
+
+<SectionQA id="4.5" mode="answer" />
+
+## 参考资料
+
+[1] [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/2104.04473)。张量、流水线与数据并行的组合。
+
+[2] [Megatron Core documentation](https://docs.nvidia.com/megatron-core/developer-guide/latest/index.html)。生产框架的并行组件与接口。

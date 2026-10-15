@@ -1,0 +1,59 @@
+---
+title: "6.3 从单卡走到多卡：先验证语义，再看速度"
+description: "单卡训练正常，切到两张 GPU 后速度提升不大，最终损失也变了。你发现全局批量翻倍了，每个 rank 还在读取相同的数据。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+单卡训练正常，切到两张 GPU 后速度提升不大，最终损失也变了。你发现全局批量翻倍了，每个 rank 还在读取相同的数据。
+
+> 扩卡时，哪些变化是预期的，哪些是实现错误？
+
+<SectionQA id="6.3" mode="ask" />
+
+## 一个进程对应一张 GPU
+
+**torchrun**启动多个工作进程，并提供 rank、local rank 和 world size 等环境信息。训练脚本据此设置设备、初始化进程组，并用 DDP 包装模型。每个进程应绑定自己的设备，不能都默认使用第 0 张卡。
+
+Linux 的两张 CUDA GPU 示例：
+
+```bash
+torchrun --standalone --nproc_per_node=2 examples/train.py --device cuda --data runs/data --out runs/ddp --steps 100 --batch-size 2 --accum 2
+```
+
+此命令使用 NCCL，前提是环境、驱动、PyTorch 构建和设备可用。Windows 原生不提供 NCCL，GPU 多卡请使用支持的 Linux / WSL 环境；本项目不声称已验证 CUDA 多卡。CPU 通信机制可用 `--device cpu` 和 Gloo 做本机小测试。
+
+## 批量要重新算
+
+两卡、每卡批量 2、累积 2、长度 64，一次更新消费 $2\times2\times2\times64=512$ 个 token。要与单卡相同全局批量比较，需要调整每卡批量或累积，而不是只改进程数。
+
+| 要核对的接口 | 正确行为 | 异常线索 |
+| --- | --- | --- |
+| 设备绑定 | 每进程使用对应设备 | 多进程挤在第 0 卡 |
+| 数据流 | rank 独立且可记录 | 完全相同批次反复出现 |
+| 通信次序 | 所有 rank 一致 | 某进程先退出，其他卡死 |
+| 保存 | 所需状态汇集，统一提交 | 多 rank 覆盖同一个文件 |
+| 评估 | 按有效 token 汇总 | 直接平均不同分母的 loss |
+
+> **一句话听懂**：多卡首先是多个进程对数据、梯度和进度达成一致，其次才是增加计算速度。
+
+## 先做小的等价检查
+
+在可控数据和配置上验证参数初始一致、每步都完成同步、各副本权重相同、token 计数正确、暂停恢复可加载。分布式归约顺序可能产生浮点差异，不应要求与不同并行布局逐位相同。
+
+教学脚本在每次保存时收集每个 rank 的随机状态。恢复要求相同 world size；改卡数继续训练属于重新规划数据与批量的迁移场景，不在严格恢复范围内。
+
+## 然后再测扩展效率
+
+固定比较目标和全局批量，测稳定步骤的端到端 token/s，观察通信、数据等待与最慢 rank。极小模型常受通信与进程调度主导，两卡比单卡慢并不奇怪。生产规模还要验收分布式存储、网络和分片检查点。
+
+<SectionQA id="6.3" mode="answer" />
+
+## 参考资料
+
+[1] [PyTorch torchrun](https://docs.pytorch.org/docs/stable/elastic/run.html)。进程启动、rank 与运行配置。
+
+[2] [PyTorch Distributed](https://docs.pytorch.org/docs/stable/distributed.html)。后端、集合通信与平台支持。

@@ -1,0 +1,58 @@
+---
+title: 《听懂大模型预训练》
+description: 从原始文本到模型权重，读懂预训练的原理、系统与工程。
+template: splash
+hero:
+  tagline: 每个训练术语，都能在一条真实运行的链路里找到位置。
+  actions:
+    - text: 先看章节与架构
+      link: /Pretrain/00-reading-guides/00-outline/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub 仓库
+      link: https://github.com/cjgogo27/Pretrain
+      icon: external
+---
+
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## 这本书解决什么问题
+
+预训练项目里，数据、模型、平台和评测常说着不同的语言。这本教程从“文本怎样变成一次权重更新”出发，把它们放进同一张系统图，再逐层拆开。
+
+六章、29 个教学小节，从数据清洗与分词，到 Transformer、预算、分布式、训练诊断和交付。先看系统，顺着接口读，最后亲手跑一次小模型。
+
+## 三种读法
+
+<CardGrid>
+  <LinkCard title="跨部门工程师" description="按接口查词，补齐数据、训练与平台之间的共同语言。" href="/Pretrain/00-reading-guides/01-engineer/" />
+  <LinkCard title="在校学生" description="从预测目标到完整实验，先理解，再动手验证。" href="/Pretrain/00-reading-guides/02-student/" />
+  <LinkCard title="产品 / PR" description="弄清预训练、能力评测、预算和模型交付的证据边界。" href="/Pretrain/00-reading-guides/03-product-pr/" />
+  <LinkCard title="先跑一个实验" description="离线原创语料、CPU 小模型、检查点与恢复验证。" href="/Pretrain/06-tools-practice/02-minimal-pretraining/" />
+</CardGrid>
+
+## 每一节怎样读
+
+| 结构 | 作用 |
+| --- | --- |
+| 现场问题 | 用一个具体场景提出本节要回答的问题 |
+| 带着问题读 | 工程师、学生、产品/PR 三类视角 |
+| 术语与图表 | 中文解释、英文名称、职责和接口 |
+| 一句话听懂 | 把概念落到可复述的结论 |
+| 工程案例 | 具体形状、算例、实现约定和失败影响 |
+| 折叠答案 | 先自己解释，再与参考答案对照 |
+| 参考资料 | 顺着一手论文与官方文档核对 |
+
+## 贯穿案例：TinyPretrain
+
+使用 257 项字节词表、2 层因果 Transformer、隐藏维度 128、上下文 64。语料由项目原创生成，无需下载模型或数据。你会得到日志、检查点、生成片段，并验证中断恢复。
+
+<Aside type="note" title="简化、算例与实测">
+  小模型用于验证机制，不代表通用大模型能力。1B 参数与 20B token 的预算是单独的假设算例。文中明确区分估算、设计选择和实际运行检查；实际验证记录见仓库 VALIDATION.md。
+</Aside>
+
+## 写作参考与维护
+
+本教程参考 CionHuang 的[《“听懂”具身智能——以人形机器人为例》](https://cionhuang.github.io/A_Brief_Tutorial_of_Humanoid_Robot/)的教学组织与阅读体验，使用相同的 Astro + Starlight；预训练内容与图示重新编写。归属与许可见[参考资料](/Pretrain/07-appendix/d-references/)。
+
+发现接口、数字或引用问题，可以在[GitHub 仓库](https://github.com/cjgogo27/Pretrain)提出 Issue 或 PR。源文件、实验代码与发布流程都在同一个仓库里。

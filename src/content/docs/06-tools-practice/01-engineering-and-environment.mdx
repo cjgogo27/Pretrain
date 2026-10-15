@@ -1,0 +1,68 @@
+---
+title: "6.1 把实验装进工程：目录、环境与配置"
+description: "你拿到一份能在作者电脑上运行的训练脚本。它依赖一个没有记录版本的库，还会自动从网络下载数据；离线运行时第一步就失败。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+你拿到一份能在作者电脑上运行的训练脚本。它依赖一个没有记录版本的库，还会自动从网络下载数据；离线运行时第一步就失败。
+
+> 怎样让一个教程实验的输入与依赖都可核对？
+
+<SectionQA id="6.1" mode="ask" />
+
+## 代码、数据与运行产物分开
+
+**实验工程（Experiment Project）**至少区分源码、输入、配置和运行输出。本站源码位于 `src/`，教学代码位于 `examples/`，每次训练写入独立的 `runs/` 目录。权重、日志与大数据不应无意间进入普通 Git 提交。
+
+| 路径 | 保存什么 | 是否随 Git 发布 |
+| --- | --- | --- |
+| `src/content/docs/` | 章节与导读 | 是 |
+| `src/components/` | 问答、系统图、预算交互 | 是 |
+| `examples/prepare_data.py` | 原创语料生成与划分 | 是 |
+| `examples/train.py` | 模型、训练、评估与恢复 | 是 |
+| `examples/verify_resume.py` | 连续/恢复一致性检查 | 是 |
+| `runs/` | 语料副本、日志、检查点 | 否，默认忽略 |
+
+## 两套环境各负其责
+
+文档站使用 Node.js 与 npm，`package-lock.json` 固定依赖树；训练示例使用 Python 与 PyTorch。生成网页不需要安装 PyTorch，训练模型也不需要先启动网站。
+
+推荐在独立 Python 虚拟环境运行：
+
+```bash
+python -m venv .venv
+```
+
+Windows PowerShell 激活用 `.\.venv\Scripts\Activate.ps1`，Linux/macOS 用 `source .venv/bin/activate`。也可以直接调用虚拟环境中的 Python，避免修改全局环境。CPU 教学依赖写在 `examples/requirements.txt`；GPU 构建请按官方安装选择匹配驱动和平台的版本，并重新验证。
+
+```bash
+python -m pip install -r examples/requirements.txt
+node --version
+npm ci
+npm run check:docs
+npm run build
+```
+
+## 配置要跟着产物走
+
+每个检查点保存完整 CLI 配置、代码版本、数据指纹与 PyTorch 版本。日志采用逐行 JSON，明确 loss、学习率、更新步与消费 token。恢复要求关键训练配置一致，输出目录可以改变。
+
+> **一句话听懂**：一个可运行的项目不仅有代码，还要能回答“用什么环境、什么输入、什么配置产生了这个结果”。
+
+## 工具选型从需要出发
+
+小实验用原生 PyTorch 能看清主循环。更大训练可能需要 Megatron Core、DeepSpeed 或 FSDP，但选框架前先确定模型、并行、检查点和部署格式需求。工具可以替你执行机制，不能替你定义实验目标。
+
+本项目验证环境记录在 `VALIDATION.md`。该记录描述实际完成的检查，不等于承诺所有平台都能逐位复现。
+
+<SectionQA id="6.1" mode="answer" />
+
+## 参考资料
+
+[1] [PyTorch Get Started](https://pytorch.org/get-started/locally/)。按平台选择安装方式。
+
+[2] [npm ci documentation](https://docs.npmjs.com/cli/v11/commands/npm-ci)。按锁文件安装依赖。

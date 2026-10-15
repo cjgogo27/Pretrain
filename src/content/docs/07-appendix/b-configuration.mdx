@@ -1,0 +1,48 @@
+---
+title: "附录 B 配置字段与接口约定"
+---
+
+## TinyPretrain 的 CLI 字段
+
+以下字段对应仓库 `examples/train.py`。它们是教学默认值，不是生产模型推荐配方。
+
+| 字段 | 默认值 | 含义与约束 |
+| --- | --- | --- |
+| `--data` | `runs/data` | 含 train.txt、val.txt 的目录 |
+| `--out` | `runs/tiny` | 本次运行输出目录 |
+| `--device` | `cpu` | `cpu` 或 `cuda`；CUDA 需环境支持 |
+| `--steps` | 100 | 整体计划优化器更新次数 |
+| `--stop-after` | 不设 | 本次进程达到指定全局步后停止 |
+| `--resume` | 不设 | 仅加载本项目可信完整检查点 |
+| `--batch-size` | 4 | 每个数据并行副本的微批量 |
+| `--seq-len` | 64 | 字节 token 上下文长度 |
+| `--accum` | 1 | 每次更新积累多少微批次 |
+| `--width` | 128 | 隐藏维度，必须能被 heads 整除 |
+| `--layers` | 2 | Transformer block 数量 |
+| `--heads` | 4 | 注意力头数 |
+| `--lr` | 0.0003 | 峰值学习率 |
+| `--warmup` | 10 | 预热更新次数 |
+| `--weight-decay` | 0.1 | AdamW 衰减，教学实现统一应用 |
+| `--clip` | 1.0 | 梯度范数裁剪阈值 |
+| `--eval-every` | 20 | 常规评估和保存间隔 |
+| `--eval-batches` | 4 | 每 rank 验证采样批次数 |
+| `--seed` | 42 | 模型与采样基础种子 |
+| `--threads` | 1 | 每进程 PyTorch CPU 线程数 |
+
+## 不要混用的计量
+
+| 名称 | 本项目约定 |
+| --- | --- |
+| step | 已完成的优化器更新次数 |
+| tokens | 已完成更新消费的全局有效训练 token；包含重复窗口 |
+| train_loss | 最近一次更新中各微批次、rank 的 token 平均损失 |
+| val_loss | 固定验证抽样窗口上的 token 平均损失 |
+| ppl | `exp(val_loss)`，仅在同编码与口径下比较 |
+| tokens_per_second | 本次进程消费 token / 训练循环墙钟时间，包含循环内评估、保存和日志 |
+| world_size | 教学 DDP 的副本数；未组合 TP/PP/CP |
+
+## 检查点约定
+
+保存模型、AdamW、更新步、token、完整配置、代码版本、数据哈希与各 rank 随机状态。加载时检查数据、world size 和影响训练轨迹的核心配置。输出目录、评估频率和提前停止位置可以改变；评估使用独立生成器，不消耗训练采样状态。
+
+本示例不支持更换 world size 的严格恢复，不支持修改数据后沿用 `--resume`，也不实现生产分片检查点或持续预训练的权重迁移。

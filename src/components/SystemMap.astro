@@ -1,0 +1,16 @@
+---
+const steps = [
+  ['语料与质量层', '原始文档 → 清洗、去重、切分与配比', '文档、来源、划分、数据版本', '#8b5cf6'],
+  ['分词与批次层', '文本 → token ID → 定长输入与右移标签', 'input_ids / labels / loss_mask', '#3b82f6'],
+  ['模型前向层', '嵌入、因果注意力、前馈网络 → 词表得分', 'logits：批次 × 序列 × 词表', '#14b8a6'],
+  ['损失与反向层', '比较下一 token，计算损失和参数梯度', '有效 token 的平均损失、梯度', '#f59e0b'],
+  ['参数更新层', '梯度同步、裁剪、优化器与学习率调度', '新权重、优化器状态、训练步数', '#f43f5e'],
+  ['检查点与评估层', '保存可恢复状态，评估未见数据与能力', '检查点、指标、诊断与交付版本', '#a78bfa'],
+];
+---
+<figure class="system-map" aria-label="预训练系统分层与反馈架构图">
+  <figcaption><strong>从文本到权重：预训练系统总图</strong></figcaption>
+  <ol>{steps.map(([name, work, output, color]) => <li style={`--map-color:${color}`}><strong>{name}</strong>{work}<br/><small>交接：{output}</small></li>)}</ol>
+  <p><strong>两个不同的反馈周期</strong>每一步：梯度 → 参数更新 → 下一步前向。阶段性：验证指标 → 人工或受控实验 → 下一版训练方案。</p>
+  <div class="infra"><span>计算与存储<br/>GPU · CPU · 网络 · 数据分片</span><span>分布式通信<br/>进程组 · AllReduce · 状态分片</span><span>可观测性<br/>损失 · 吞吐 · 梯度 · 异常日志</span><span>可复现配置<br/>数据 · 分词器 · 代码 · 环境 · 随机状态</span></div>
+</figure>

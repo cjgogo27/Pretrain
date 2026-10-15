@@ -1,0 +1,77 @@
+---
+title: "6.2 亲自跑一次：从零预训练一个小模型"
+description: "读完前面几章，你知道每个模块叫什么，却还没有亲眼看过“文本进来、权重改变、检查点落盘”的全过程。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+读完前面几章，你知道每个模块叫什么，却还没有亲眼看过“文本进来、权重改变、检查点落盘”的全过程。
+
+> 能不能不用下载大型数据，也把这条链跑通？
+
+<SectionQA id="6.2" mode="ask" />
+
+## 先说实验的边界
+
+本节训练 TinyPretrain：257 项字节词表、可学习位置嵌入、2 层因果 Transformer、隐藏维度 128、4 个头，默认上下文 64。语料由本项目原创模板和短句组成。它是机制实验，生成内容可能重复或乱码，不用于测量通用语言能力。
+
+**从零训练（Training from Scratch）**意味着参数由随机初始化开始，没有加载已有语言模型权重。本实验不下载预训练模型，也不下载外部语料。
+
+## 第一步：准备并检查语料
+
+在仓库根目录运行：
+
+```bash
+python examples/prepare_data.py --out runs/data
+```
+
+脚本先按文档划分，再分别写入 `train.txt` 与 `val.txt`，并生成 `manifest.json`。你可以打开文本检查内容，也可以对照清单中的哈希。两侧共享教学主题，文档身份不同不表示语义完全独立。
+
+## 第二步：运行训练
+
+```bash
+python examples/train.py --data runs/data --out runs/tiny --steps 100
+```
+
+每步的输入取长度 $S+1$ 的窗口：前 $S$ 个 token 为输入，后 $S$ 个为目标。模型使用因果掩码，交叉熵对每个有效位置求平均。完成累积、梯度检查和裁剪后，AdamW 更新参数。
+
+| 输出 | 读它可以知道什么 |
+| --- | --- |
+| `metrics.jsonl` | 每次评估对应的 step、loss、PPL、token 与学习率 |
+| `latest.pt` | 最新可恢复训练状态 |
+| `sample.txt` | 用当前模型采样的演示片段 |
+| 终端日志 | 训练进度与全局端到端吞吐 |
+
+CPU 运行速度依机器而异。可以用 `--threads 1` 减少小模型线程开销，或减小层数和宽度做结构检查。不要把“短跑结束”当作达到语言质量门槛。
+
+> **一句话听懂**：这个实验让每一块都有实物：文本文件、ID、logits、loss、梯度、权重与可恢复状态。
+
+## 第三步：演练暂停与恢复
+
+```bash
+python examples/train.py --data runs/data --out runs/paused --steps 100 --stop-after 40
+python examples/train.py --data runs/data --out runs/resumed --steps 100 --resume runs/paused/latest.pt
+```
+
+两条命令总计划都是 100 步，第一条只在第 40 步提前退出。第二条保留原计划继续，不把学习率终点改成新的值。输出目录可以不同，核心训练配置必须一致。
+
+```bash
+python examples/verify_resume.py
+```
+
+验证脚本在临时目录对比连续与分段运行的最终参数、优化器和计数，并检查修改数据后恢复被拒绝。完成后自动清理自己的临时目录。
+
+## 怎样解释结果
+
+先看 loss 是否有限、步数与 token 是否符合配置，再检查恢复验证。如果 loss 有变化而文本仍不好，这并不矛盾：小语料、短上下文和极小模型本来不足以获得广泛语言能力。真正的质量结论需要更合适的数据、预算和独立评测。
+
+<SectionQA id="6.2" mode="answer" />
+
+## 参考资料
+
+[1] [PyTorch Language Modeling Tutorial](https://docs.pytorch.org/tutorials/beginner/transformer_tutorial.html)。Transformer 语言建模教学背景；具体 API 以当前接口为准。
+
+[2] [PyTorch Saving and Loading Models](https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html)。检查点和状态加载。

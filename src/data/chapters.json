@@ -1,0 +1,118 @@
+[
+  {
+    "path": "01-system-overview/01-what-is-pretraining",
+    "title": "1.1 我们到底在训练什么：预训练、续训与后训练"
+  },
+  {
+    "path": "01-system-overview/02-inside-language-model",
+    "title": "1.2 一个语言模型里面有什么：以 TinyPretrain 为例"
+  },
+  {
+    "path": "01-system-overview/03-pretraining-system-architecture",
+    "title": "1.3 从原始文本到模型权重：预训练系统如何运行"
+  },
+  {
+    "path": "02-data-tokenization/01-sources-and-mixture",
+    "title": "2.1 模型读什么：数据来源、覆盖与配比"
+  },
+  {
+    "path": "02-data-tokenization/02-cleaning-deduplication",
+    "title": "2.2 什么文本值得学：清洗、去重与评测污染"
+  },
+  {
+    "path": "02-data-tokenization/03-tokenizer",
+    "title": "2.3 文本怎样变成数字：Tokenizer 与词表"
+  },
+  {
+    "path": "02-data-tokenization/04-packing-and-loading",
+    "title": "2.4 怎样喂给模型：序列打包、标签与数据加载"
+  },
+  {
+    "path": "02-data-tokenization/05-data-version-and-acceptance",
+    "title": "2.5 这批数据能开跑吗：版本、抽样与验收"
+  },
+  {
+    "path": "03-model-compute/01-tensors-and-probability",
+    "title": "3.1 看懂训练里的数字：张量、概率与交叉熵"
+  },
+  {
+    "path": "03-model-compute/02-decoder-only-transformer",
+    "title": "3.2 网络怎样读上下文：Decoder-only Transformer"
+  },
+  {
+    "path": "03-model-compute/03-position-and-context",
+    "title": "3.3 顺序怎样进入模型：位置编码与上下文长度"
+  },
+  {
+    "path": "03-model-compute/04-parameters-memory-flops",
+    "title": "3.4 模型有多贵：参数量、显存与计算量"
+  },
+  {
+    "path": "03-model-compute/05-scaling-laws-and-budget",
+    "title": "3.5 先算再训练：Scaling Laws 与算力预算"
+  },
+  {
+    "path": "04-training-distributed/01-loss-and-gradients",
+    "title": "4.1 模型怎样改正预测：损失、反向与梯度累积"
+  },
+  {
+    "path": "04-training-distributed/02-optimizer-and-learning-rate",
+    "title": "4.2 每次改多少：AdamW、学习率与预热"
+  },
+  {
+    "path": "04-training-distributed/03-precision-and-stability",
+    "title": "4.3 算得快也要算得稳：混合精度、裁剪与数值检查"
+  },
+  {
+    "path": "04-training-distributed/04-data-parallel-and-sharding",
+    "title": "4.4 多张卡怎样一起学：数据并行、DDP 与 ZeRO"
+  },
+  {
+    "path": "04-training-distributed/05-tensor-pipeline-context-parallel",
+    "title": "4.5 一个模型怎样拆开：张量、流水线与上下文并行"
+  },
+  {
+    "path": "04-training-distributed/06-checkpoint-and-recovery",
+    "title": "4.6 断了怎样接着跑：检查点、随机状态与故障恢复"
+  },
+  {
+    "path": "05-evaluation-diagnosis/01-validation-loss-perplexity",
+    "title": "5.1 模型有没有学到新东西：验证损失与困惑度"
+  },
+  {
+    "path": "05-evaluation-diagnosis/02-capability-evaluation",
+    "title": "5.2 分数测的是什么：能力评测、提示与报告"
+  },
+  {
+    "path": "05-evaluation-diagnosis/03-contamination-and-comparison",
+    "title": "5.3 怎样让比较可信：污染、基线与选择偏差"
+  },
+  {
+    "path": "05-evaluation-diagnosis/04-throughput-and-profiling",
+    "title": "5.4 GPU 为什么没忙起来：吞吐、MFU 与性能分析"
+  },
+  {
+    "path": "05-evaluation-diagnosis/05-failures-and-ablation",
+    "title": "5.5 出问题先查哪里：异常诊断与最小消融"
+  },
+  {
+    "path": "06-tools-practice/01-engineering-and-environment",
+    "title": "6.1 把实验装进工程：目录、环境与配置"
+  },
+  {
+    "path": "06-tools-practice/02-minimal-pretraining",
+    "title": "6.2 亲自跑一次：从零预训练一个小模型"
+  },
+  {
+    "path": "06-tools-practice/03-single-to-multi-gpu",
+    "title": "6.3 从单卡走到多卡：先验证语义，再看速度"
+  },
+  {
+    "path": "06-tools-practice/04-continued-pretraining",
+    "title": "6.4 已有模型怎样接着学：持续预训练与领域迁移"
+  },
+  {
+    "path": "06-tools-practice/05-delivery-and-reproduction",
+    "title": "6.5 训练结束以后：权重交付、模型卡与复现"
+  }
+]

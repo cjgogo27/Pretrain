@@ -1,0 +1,42 @@
+<section class="calculator" aria-label="稠密模型训练预算计算器">
+  <h3>修改假设，观察预算</h3>
+  <p class="note">所有默认值均为教学假设。时间只覆盖所填有效速度代表的工作范围。</p>
+  <div class="fields">
+    <label>参数量（B）<input id="budget-n" type="number" min="0.001" max="10000" step="0.1" value="1" /></label>
+    <label>训练 token（B）<input id="budget-d" type="number" min="0.001" max="1000000" step="1" value="20" /></label>
+    <label>GPU 数量<input id="budget-p" type="number" min="1" max="100000" step="1" value="8" /></label>
+    <label>每卡有效 TFLOP/s<input id="budget-f" type="number" min="0.001" max="100000" step="10" value="100" /></label>
+  </div>
+  <output id="budget-result" aria-live="polite">估计训练量 1.20e+20 FLOPs；理想计算时间 41.7 小时。</output>
+</section>
+<script>
+  function initBudget() {
+    const ids = ['budget-n', 'budget-d', 'budget-p', 'budget-f'];
+    const fields = ids.map(id => document.getElementById(id) as HTMLInputElement);
+    const result = document.getElementById('budget-result');
+    if (!result || fields.some(field => !field)) return;
+    function update() {
+      const values = fields.map(field => Number(field.value));
+      if (values.some((v, i) => !Number.isFinite(v) || v <= 0 || !fields[i].validity.valid)) {
+        result!.textContent = '请输入范围内的正数，GPU 数量应为整数。'; return;
+      }
+      const [n, d, p, f] = values;
+      const flops = 6 * n * 1e9 * d * 1e9;
+      const hours = flops / (p * f * 1e12) / 3600;
+      result!.textContent = `估计训练量 ${flops.toExponential(2)} FLOPs；理想计算时间 ${hours.toLocaleString('zh-CN', { maximumFractionDigits: 1 })} 小时（${(hours / 24).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 天）。`;
+    }
+    fields.forEach(field => field.addEventListener('input', update)); update();
+  }
+  initBudget();
+  document.addEventListener('astro:page-load', initBudget);
+</script>
+<style>
+  .calculator { border: 1px solid var(--sl-color-gray-4); border-radius: .6rem; padding: 1.2rem; margin-block: 1.5rem; background: var(--sl-color-bg-nav); }
+  h3 { margin-top: 0; }
+  .note { font-size: .9rem; color: var(--sl-color-gray-2); }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  label { display: grid; gap: .3rem; font-size: 1rem; }
+  input { color: var(--sl-color-text); background: var(--sl-color-bg); padding: .5rem; border: 1px solid var(--sl-color-gray-4); border-radius: .3rem; width: 100%; font: inherit; }
+  output { display: block; margin-top: 1rem; color: var(--sl-color-text-accent); font-weight: 600; }
+  @media (max-width: 30rem) { .fields { grid-template-columns: 1fr; } }
+</style>

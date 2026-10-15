@@ -1,0 +1,57 @@
+---
+title: "3.2 网络怎样读上下文：Decoder-only Transformer"
+description: "你把“银行旁边有一棵树”和“把钱存进银行”输入模型。同一个“银行”，周围词语却改变了它需要表达的意思。"
+---
+
+import SectionQA from '../../../components/SectionQA.astro';
+import SystemMap from '../../../components/SystemMap.astro';
+
+## 现场问题
+
+你把“银行旁边有一棵树”和“把钱存进银行”输入模型。同一个“银行”，周围词语却改变了它需要表达的意思。
+
+> 固定的嵌入向量，怎样变成随上下文变化的表示？
+
+<SectionQA id="3.2" mode="ask" />
+
+## 注意力让当前位置读取历史
+
+**自注意力（Self-attention）**把输入映射成 Query、Key、Value。Query 与 Key 的相似性决定向哪些位置分配权重，再加权汇总 Value。对自回归模型，因果掩码禁止读取未来位置。
+
+标准缩放点积注意力可写为：
+
+$$\operatorname{Attention}(Q,K,V)=\operatorname{softmax}\left(\frac{QK^\top}{\sqrt{d_h}}+M\right)V.$$
+
+$d_h$ 是每个头的维度，$M$ 把不允许访问的位置设为负无穷。这里的 $V$ 表示 Value 张量，与前一节词表大小的符号在语境上不同。公式描述数学操作，实际实现常用融合内核减少中间结果的存储。
+
+## 一个 Transformer block 的路径
+
+| 子模块 | 主要职责 | 容易误解的地方 |
+| --- | --- | --- |
+| 归一化 | 调整数值尺度 | LayerNorm 与 RMSNorm 不完全相同 |
+| 多头注意力 | 从多个投影子空间汇集历史 | 注意力头不是固定的人类语义类别 |
+| 残差连接 | 让子层修正已有表示 | 并不意味着跳过训练 |
+| 前馈网络 | 对每个位置做非线性变换 | 参数量可能占很大比例 |
+| 最终投影 | 从隐藏表示得到词表得分 | 可以与嵌入共享权重 |
+
+本书的 **Decoder-only Transformer** 使用因果自注意力堆叠，不含机器翻译式编码器—解码器之间的交叉注意力。“Decoder-only”说明架构路径，不代表模型只在生成时才会用到。
+
+## 训练为什么能并行，生成为什么常逐步
+
+训练时整段真实文本已经给出，每个位置可以在同一次前向中计算自己的下一 token 得分，因果掩码保证看不到未来。生成时，后续 token 还不存在，需要先选出一个，再继续预测。KV cache 可以复用历史 Key/Value，但不改变这个依赖关系。
+
+> **一句话听懂**：注意力决定从哪些历史位置取信息，前馈网络加工这些表示，堆叠的 block 逐步形成用于下一 token 预测的特征。
+
+## 以教学实现划清边界
+
+TinyPretrain 用 PyTorch 的 TransformerEncoderLayer 加因果掩码实现同类自注意力堆叠。类名中的 Encoder 不能单独决定模型是否双向，实际可见范围取决于掩码；教学实现也不等同于完整复现某个生产模型。
+
+生产模型可能使用 GQA 减少 K/V 头、SwiGLU 改变前馈计算、MoE 只激活部分专家。比较这些架构需要同时报告总参数、激活参数、训练计算和路由/通信开销。本书预算默认稠密模型，不把它的公式直接套给 MoE。
+
+<SectionQA id="3.2" mode="answer" />
+
+## 参考资料
+
+[1] [Attention Is All You Need](https://arxiv.org/abs/1706.03762)。注意力、残差和前馈子层。
+
+[2] [FlashAttention](https://arxiv.org/abs/2205.14135)。精确注意力的 I/O 优化。
