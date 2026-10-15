@@ -102,3 +102,9 @@ width32/1层/B4/S32，固定初始化和窗口，每次预热3步、测20步。�
 - 未执行CUDA/NCCL、多机、AMP、状态分片、真实TP/PP/CP、长上下文、写盘故障/SDC、长期稳定性、生产吞吐/GPU MFU、模板/主题留出或真实领域能力测评。
 
 实验设计方法与工具归属已写入[结果说明](examples/results/README.md)。发布状态以本轮GitHub Actions记录为准。
+
+## 发布后实际检查
+
+内容提交为1f0144d5100ab3e3e4669627fc028ccd45a3c080，[GitHub Actions构建与Pages发布](https://github.com/cjgogo27/Pretrain/actions/runs/38688161602)已完成，结论success。
+
+发布后实际HTTP读取2.1配比、4.5 TP/PP、5.4性能、6.3多步DDP四个线上页面，均返回200，并分别检出本轮新数值或图示标记。此项只确认线上内容已更新，不等同于截图、布局和交互验收。本记录后续独立文档提交不改变该内容提交的实测源码身份。
