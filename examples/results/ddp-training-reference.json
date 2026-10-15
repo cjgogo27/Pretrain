@@ -1,0 +1,77 @@
+{
+  "status": "PASS",
+  "environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.5",
+    "torch": "2.11.0+cpu"
+  },
+  "code_sha256": "596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403",
+  "script_sha256": "c870387d81cdbad4de2512ba15e65040bd159e7d577fe042155961cb8cf4b954",
+  "backend": "Gloo TCPStore(use_libuv=False)",
+  "fixed_sample": {
+    "updates": 5,
+    "world_size": 2,
+    "accum": 2,
+    "batch_per_rank": 2,
+    "seq_len": 8,
+    "tokens_per_update": 64,
+    "clip": 0.2,
+    "clipping_active_all_steps": true,
+    "comparison": "same windows in single global batch versus two ranks / two micros",
+    "max_abs_errors": {
+      "gradient": 3.725290298461914e-08,
+      "parameter": 2.51146389018686e-07,
+      "preclip_norm": 5.960464477539063e-08
+    },
+    "atol": 1e-06,
+    "rtol": 0.0001
+  },
+  "real_loop": {
+    "updates": 8,
+    "interrupted_after": 4,
+    "tokens": 1024,
+    "world_size": 2,
+    "accum": 2,
+    "batch_per_rank": 2,
+    "seq_len": 16,
+    "width": 32,
+    "layers": 1,
+    "clip": 0.2,
+    "domain_weight": 0.5,
+    "exact_equal_fields": [
+      "model",
+      "optimizer",
+      "step",
+      "tokens",
+      "rng_states",
+      "data_hashes",
+      "code_sha256",
+      "domain_tokens",
+      "initialization"
+    ],
+    "both_rank_rng_restored": true,
+    "final_metrics_equal": true,
+    "generated_sample_equal": true,
+    "changed_mixture_rejected": true,
+    "changed_pool_rejected": true,
+    "final_metrics": {
+      "step": 8,
+      "tokens": 1024,
+      "train_loss": 5.530010223388672,
+      "val_loss": 5.513965845108032,
+      "ppl": 248.1332363152155,
+      "lr": 2.9999999999999997e-05,
+      "grad_norm": 1.2292083501815796,
+      "elapsed_seconds": 0.18130810000002384,
+      "tokens_per_second": 5647.844746042043,
+      "eval_windows_global": 8,
+      "eval_indices_sha256": "9eb75a222ab3ac391cdd9f729a25ab73f6faec12c7d7d283db513274f58edc43",
+      "eval_tokens": 128,
+      "domain_tokens": 480,
+      "general_tokens": 544,
+      "actual_domain_fraction": 0.46875
+    }
+  },
+  "scope": "CPU FP32 local only; no CUDA/NCCL/multi-node/sharded/elastic validation",
+  "execution_date": "2026-10-15"
+}

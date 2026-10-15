@@ -51,6 +51,27 @@ CUDA 计算通常异步执行。测量短区间时需要正确同步或使用设
 
 教学脚本的 token/s 包含循环中评估、日志与保存的时间，用于端到端观察，不用来宣称内核性能。CPU 短跑受启动和线程影响很大，也不外推 GPU 训练速度。
 
+## 实跑诊断：等待时间为什么会伪装成“算得慢”？
+
+```bash
+python examples/profile_case.py --out runs/profile
+```
+
+本案例用 width=32、1 层、4 头、B=4、S=32 的 FP32 CPU 模型，固定初始化与输入窗口，每次预热 3 次更新、测量 20 次。**人为在取数区间加入 `sleep(0.004)`**，模拟已知等待；不代表默认 loader 有这个问题。对“等待 / 移除”各做三次配对重复，以 seed=2026 打乱六次运行顺序；另各跑一次 profiler，避免把剖析开销混进基准数字。
+
+| 诊断步骤 | 本次观察与操作 |
+| --- | --- |
+| 现象 | 未开启 profiler，含等待的每步中位数为 6.442ms，移除后为 1.737ms；分别是三次重复的步中位数再取中位数 |
+| 证据 | 含等待的 profiler 中，20 步 `case/data_wait` 区间累计 88.431ms；前向 28.253ms、反向 32.329ms、裁剪 / 更新 32.346ms |
+| 候选解释 | 数据等待占明显墙钟时间；本案例知道等待来自注入，真实系统还需检查 I/O、CPU 准备和同步 |
+| 最小验证 | 仅移除 sleep，固定窗口及更新配置相同；profiler 取数区间降为 0.604ms / 20 步，最终参数字节哈希完全相同 |
+
+这是 Windows / Python 3.12.5 / PyTorch 2.11.0+cpu、1 线程的实际观测，不是稳定速度承诺。毫秒计时受系统调度影响；不能写成“模型计算提升数倍”。等待还可能影响 CPU 频率和调度，其他阶段的耗时不必完全相同。
+
+`case/data_wait` 是 CPU 线程范围的持续时间，包含 sleep，不等于 CPU 正执行浮点运算。范围与子算子时间会嵌套，不能相加重复计费。内存字段是算子归属的分配 / 释放统计，可以为负，**不是峰值显存**。本实验没有计算 GPU MFU。
+
+产物为 `design.json`、`report.json`、`wait-trace.json`、`removed-trace.json`。trace 可在支持 Chrome trace 格式的查看器打开，本轮只检查实际导出与事件数据，未做时间线界面点击验收。成功条件是报告、有效 trace 产生，最终参数一致且阶段区间可检查，不设跨机器必达加速比。若 profiler 不可用或导出失败，保留错误；比较耗时前先统一是否开启 profiler。完整记录见 [profile-reference.json](https://github.com/cjgogo27/Pretrain/blob/main/examples/results/profile-reference.json)。
+
 <SectionQA id="5.4" mode="answer" />
 
 ## 参考资料

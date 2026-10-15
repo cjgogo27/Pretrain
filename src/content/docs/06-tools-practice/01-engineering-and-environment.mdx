@@ -26,6 +26,10 @@ import SystemMap from '../../../components/SystemMap.astro';
 | `examples/train.py` | 模型、训练、评估与恢复 | 是 |
 | `examples/verify_resume.py` | 因果性、严格恢复拒绝与仅权重初始化检查 | 是 |
 | `examples/verify_ddp.py` | 固定样本两进程 CPU 数值对照 | 是 |
+| `examples/verify_ddp_training.py` / `launch_cpu.py` | 多步累积 / 裁剪对照、真实循环恢复和本机启动 | 是 |
+| `examples/cleaning_case.py` / `mixture_case.py` | 清洗误差与三种子配比对照 | 是 |
+| `examples/parallel_case.py` / `profile_case.py` | TP 代数 / PP 时间线检查与 CPU 等待剖析 | 是 |
+| `examples/results/*-reference.json` | 配置、身份、实测与边界 | 是 |
 | `examples/results/cpu-reference.json` | 本轮配置、身份、实测数值与生成片段 | 是 |
 | `runs/` | 语料副本、日志、检查点 | 否，默认忽略 |
 

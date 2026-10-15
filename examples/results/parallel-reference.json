@@ -1,0 +1,83 @@
+{
+  "status": "PASS",
+  "torch": "2.11.0+cpu",
+  "scope": "single-process FP64 algebra and ideal schedule; no distributed TP/PP or measured communication",
+  "shapes": {
+    "x": [
+      6,
+      4
+    ],
+    "w1": [
+      4,
+      8
+    ],
+    "w2": [
+      8,
+      4
+    ],
+    "per_shard_w1": [
+      4,
+      4
+    ],
+    "per_shard_w2": [
+      4,
+      4
+    ]
+  },
+  "max_abs_errors": {
+    "output": 8.881784197001252e-16,
+    "input_gradient": 8.881784197001252e-16,
+    "w1_gradient": 8.881784197001252e-16,
+    "w2_gradient": 3.3306690738754696e-16
+  },
+  "tolerance": {
+    "atol": 1e-12,
+    "rtol": 1e-12
+  },
+  "communication_example": {
+    "B": 2,
+    "S": 1024,
+    "d": 4096,
+    "bytes_per_element": 2,
+    "tp": 2,
+    "payload_bytes": 16777216,
+    "ring_send_bytes_per_rank_per_collective": 16777216,
+    "ffn_forward_plus_backward_send_bytes_per_rank": 33554432
+  },
+  "pipeline": {
+    "stages": 2,
+    "microbatches": 4,
+    "schedule": [
+      [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "-",
+        "-",
+        "B4",
+        "B3",
+        "B2",
+        "B1"
+      ],
+      [
+        "-",
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "B4",
+        "B3",
+        "B2",
+        "B1",
+        "-"
+      ]
+    ],
+    "slots": 10,
+    "idle_device_slots": 4,
+    "total_device_slots": 20,
+    "bubble_fraction": 0.2,
+    "assumptions": "GPipe fill-drain; equal forward/backward time; balanced stages; communication zero; optimizer excluded"
+  },
+  "execution_date": "2026-10-15"
+}

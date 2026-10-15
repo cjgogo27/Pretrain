@@ -17,23 +17,31 @@ TOPICS = [
     ("恢复", "把状态重新对应起来", "随机状态和数据位置同样需要检查"),
 ]
 
-def prepare(out):
+def prepare(out, pools=False):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     train, val = [], []
+    separated = {f"{split}-{pool}": [] for split in ("train", "val") for pool in ("domain", "general")}
     for topic, action, principle in TOPICS:
         for i in range(24):
             doc = (f"第{i + 1}次学习记录：今天讨论{topic}。我们先{action}，再检查结果。"
                    f"{principle}。一个实验需要输入、配置和可以核对的输出。"
                    f"This is lesson {i + 1} about pretraining. Record evidence before drawing a conclusion.")
             (val if i % 6 == 5 else train).append(doc)
+            split = "val" if i % 6 == 5 else "train"
+            separated[f"{split}-{'domain' if topic == '优化器' else 'general'}"].append(doc)
     manifest = {"version": "original-teaching-v1", "split": "document-before-tokenization",
                 "tokenizer": "utf8-bytes-0-255,eos-256", "files": {}}
-    for split, docs in (("train", train), ("val", val)):
+    files = {"train": train, "val": val}
+    if pools:
+        files.update(separated)
+        manifest["pools"] = {"domain": "优化器", "general": "其余九个主题", "split": "same document split as baseline"}
+    for split, docs in files.items():
         raw = ("\n\n".join(docs) + "\n").encode("utf8")
         path = out / f"{split}.txt"
         path.write_bytes(raw)
         manifest["files"][path.name] = {"documents": len(docs), "bytes": len(raw),
+                                         "stream_tokens_including_eos": sum(len(doc.encode("utf8")) + 1 for doc in docs),
                                          "sha256": hashlib.sha256(raw).hexdigest()}
     (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
     print(json.dumps({"data": str(out), "train_documents": len(train), "val_documents": len(val)}))
@@ -41,4 +49,6 @@ def prepare(out):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", default="runs/data")
-    prepare(parser.parse_args().out)
+    parser.add_argument("--pools", action="store_true", help="Also write optimizer-topic/domain and other-topic/general pools")
+    args = parser.parse_args()
+    prepare(args.out, args.pools)

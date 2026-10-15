@@ -102,6 +102,16 @@ python examples/verify_resume.py
 
 ## 怎样解释结果
 
+想继续追踪“换数据 / 换切分 / 换等待时间”各改变什么，可按下面顺序运行。每个 `--out` 使用新目录；成功条件、失败排查和结论边界在对应章节，无新增下载依赖。
+
+| 命令 | 预期产物与先看什么 | 正文解释 |
+| --- | --- | --- |
+| `python examples/cleaning_case.py --out runs/cleaning` | raw.jsonl、report；核对误删与漏删 | [2.2](/Pretrain/02-data-tokenization/02-cleaning-deduplication/) |
+| `python examples/mixture_case.py --out runs/mixture` | design / report、六次训练；核对消费量与验证身份 | [2.1](/Pretrain/02-data-tokenization/01-sources-and-mixture/) |
+| `python examples/parallel_case.py --out runs/parallel` | report；四类张量误差与调度依赖 | [4.5](/Pretrain/04-training-distributed/05-tensor-pipeline-context-parallel/) |
+| `python examples/profile_case.py --out runs/profile` | report、两份 trace；区分剖析与基准计时 | [5.4](/Pretrain/05-evaluation-diagnosis/04-throughput-and-profiling/) |
+| `python examples/verify_ddp_training.py --out runs/ddp-training` | PASS、report 和日志；两层验证均通过 | [6.3](/Pretrain/06-tools-practice/03-single-to-multi-gpu/) |
+
 先看 loss 是否有限、步数与 token 是否符合配置，再检查恢复验证。如果 loss 有变化而文本仍不好，这并不矛盾：小语料、短上下文和极小模型本来不足以获得广泛语言能力。真正的质量结论需要更合适的数据、预算和独立评测。
 
 <SectionQA id="6.2" mode="answer" />

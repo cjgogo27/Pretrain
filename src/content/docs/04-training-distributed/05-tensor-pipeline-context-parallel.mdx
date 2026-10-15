@@ -6,6 +6,8 @@ description: "状态分片后仍然显存紧张；另一个实验里，模型能
 import SectionQA from '../../../components/SectionQA.astro';
 import SystemMap from '../../../components/SystemMap.astro';
 import ParallelLayout from '../../../components/ParallelLayout.astro';
+import TensorSplit from '../../../components/TensorSplit.astro';
+import PipelineTimeline from '../../../components/PipelineTimeline.astro';
 
 ## 现场问题
 
@@ -36,11 +38,48 @@ import ParallelLayout from '../../../components/ParallelLayout.astro';
 
 每数据副本微批量 B=2、S=1024、累积 A=4，更新消费 `2×1024×4×2=16,384` 个 token。错误乘总设备数 8 会夸大四倍；TP 和 PP 在共同完成同一逻辑模型的计算，不各自提供独立数据副本。实际框架可能有不同进程组嵌套方式，应按配置确认。
 
-## 为什么流水线会有气泡
+## TP 算一次：中间不用拼回完整 FFN
+
+将 B×S 展平为 T，取 T=6、d=4、FFN 宽度 8。忽略 bias / dropout，未切分前 `Z=GELU(XW₁)W₂`，其中 `X[6,4]、W₁[4,8]、W₂[8,4]`。这是一层 FFN 的简化算例，不是 TinyPretrain 的默认尺寸。
+
+TP=2 时，按矩阵记号 `X @ W`：W₁ **按输出列**切成两个 [4,4]，W₂ **按输入行**切成两个 [4,4]。每路计算 `Hᵢ=GELU(XW₁ᵢ)`，再算 `Zᵢ=HᵢW₂ᵢ`；完整输出是 `Z₀+Z₁`，不是把两个 Z 横向拼起来。
+
+<TensorSplit />
+
+GELU 逐元素执行，所以中间 H 不需要先汇集。这个基本 Megatron FFN 设计中，前向对 Z 求和，反向对两路 dX 求和；每路权重梯度留在所属分片。假设输入 / 输出逻辑上复制、无序列并行和其他融合，分别对应一次前向与一次反向 AllReduce。这里的 TP 求和与标准 DDP 的 rank 梯度平均是不同职责。具体切分见 [Megatron 原始说明的 MLP 与 f/g 图](https://research.nvidia.com/labs/adlr/MegatronLM/)。
+
+<details>
+<summary>再算通信字节，为什么还不能推出耗时？</summary>
+
+换一个**假设生产尺寸** B=2、S=1024、d=4096、BF16 每元素 2 字节，待归约张量大小 `M=B×S×d×2=16,777,216 bytes=16 MiB`。若使用经典 ring AllReduce、TP 度 p=2，每 rank 每次 collective 的发送量为 `2(p−1)M/p=16 MiB`，接收量另有 16 MiB。这个 FFN 前向加反向，单 rank 发送合计 32 MiB、接收合计 32 MiB；不能把 payload、发送加接收、全组流量混成同一单位。
+
+这是传输算法模型，不是 NCCL 实测，也没计协议、其他层或 DP 通信。换 AllReduce 算法、序列并行或重叠策略，口径会改变；即使知道字节数，没有延迟、有效带宽及重叠证据，也不能填写固定毫秒。
+
+</details>
+
+## PP 算一次：空闲占总时间，还是相对理想时间？
 
 前一阶段还没产出激活时，后一阶段只能等待；反向也有相反方向的依赖。把一个大批次分成多个微批次，可以让不同阶段同时处理不同微批次，但开始和结束仍有填充/排空成本。阶段算量不均也会让最快的设备等最慢的阶段。
 
 为了减少气泡而增加微批次数，会影响累积、内存和调度。PP 的 micro-batch 与优化器全局批量需一起计算，不能用一个术语替代所有计数。
+
+取 P=2 个均衡阶段、m=4 个微批次，采用 GPipe 的先全前向、再全反向调度；假设每阶段一次前向和反向各占 1 格、通信为零，忽略优化器。所有微批次结束后才更新一次：
+
+<PipelineTimeline />
+
+每阶段有效工作 8 格，空闲 2 格，总历时 10 格；全组空闲设备格为 `4/20=20%`。一般在这些假设下，**空闲占总时间**为 `(P−1)/(m+P−1)`；相对理想计算时间的额外开销则是 `(P−1)/m=25%`。两种分母不同，20% 和 25% 并不矛盾。[Megatron §2.2.1](https://arxiv.org/html/2104.04473v5)采用后一种口径。
+
+时间线用于理解依赖，不预测硬件速度。1F1B 改变在途激活数量与顺序，交错调度还有额外通信，不能直接把这张表的数字当成任意 PP 的性能。
+
+## 用 CPU 检查代数和依赖
+
+```bash
+python examples/parallel_case.py --out runs/parallel
+```
+
+脚本实际在**同一进程**用 FP64 对比未切分 FFN 与两路代数分解的输出、dX、dW₁、dW₂；最大绝对差为 `8.882e-16`，通过 `atol=rtol=1e-12`。同时检查图中每个微批次的跨阶段依赖与 20% 空闲比例，生成 `report.json`。该程序没有启动真实 TP / PP，也没有运行 collective 或测通信。
+
+若形状不匹配，先查 W₁ 的列与 W₂ 的行是否成对切分；若输出多了一倍，查是否重复求和；若验证失败，不要用放宽容差代替定位。完整数值见 [parallel-reference.json](https://github.com/cjgogo27/Pretrain/blob/main/examples/results/parallel-reference.json)。
 
 > **一句话听懂**：TP 拆层内计算，PP 拆层间路径，CP 拆长序列工作；先明确瓶颈，才能选择拆哪里。
 

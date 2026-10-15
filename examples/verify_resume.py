@@ -1,5 +1,6 @@
 """Meaningful CPU check: uninterrupted == resumed, and changed data is rejected."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -10,7 +11,11 @@ from train import TinyLM
 HERE = Path(__file__).resolve().parent
 
 def execute(arguments, ok=True, expected_error="fingerprint mismatch"):
-    result = subprocess.run([sys.executable, *map(str, arguments)], capture_output=True, text=True, encoding="utf8", timeout=90)
+    environment = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    # Native Gloo diagnostics may still use the Windows code page. Preserve the
+    # numeric/ASCII error evidence without crashing a reader thread on decoding.
+    result = subprocess.run([sys.executable, *map(str, arguments)], capture_output=True, text=True,
+                            encoding="utf8", errors="replace", env=environment, timeout=180)
     if ok and result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     if not ok:

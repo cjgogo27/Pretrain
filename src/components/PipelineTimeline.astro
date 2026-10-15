@@ -1,0 +1,18 @@
+---
+const rows = [
+  ['阶段 0', 'F1', 'F2', 'F3', 'F4', '—', '—', 'B4', 'B3', 'B2', 'B1'],
+  ['阶段 1', '—', 'F1', 'F2', 'F3', 'F4', 'B4', 'B3', 'B2', 'B1', '—'],
+];
+---
+<figure class="pipeline-timeline">
+  <figcaption><strong>假设时间线：GPipe，2 个阶段、4 个微批次</strong></figcaption>
+  <div class="scroll" tabindex="0" role="region" aria-label="流水线调度表，可横向滚动">
+    <table><thead><tr><th scope="col">时间槽</th>{Array.from({length: 10}, (_, i) => <th scope="col">{i+1}</th>)}</tr></thead>
+      <tbody>{rows.map(([label, ...jobs]) => <tr><th scope="row">{label}</th>{jobs.map(job => <td class:list={{forward: job.startsWith('F'), backward: job.startsWith('B')}}>{job}</td>)}</tr>)}</tbody>
+    </table>
+  </div>
+  <p>F/B 表示对应微批次的前向/反向；— 是空闲。每格只是一个理想时间单位，没有实测毫秒值。</p>
+</figure>
+<style>
+  .pipeline-timeline { border: 1px solid var(--sl-color-gray-4); border-radius: .6rem; padding: 1rem; margin-block: 1.5rem; font-size: .9rem; }.scroll { overflow-x: auto; margin-top: .8rem; }table { width: 100%; min-width: 38rem; margin: 0; border-collapse: collapse; }th, td { text-align: center; padding: .45rem; border: 1px solid var(--sl-color-gray-4); white-space: nowrap; }.forward { background: var(--sl-color-accent-low); }.backward { background: var(--sl-color-gray-6); }
+</style>

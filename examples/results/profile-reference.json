@@ -1,0 +1,247 @@
+{
+  "environment": {
+    "os": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.5",
+    "torch": "2.11.0+cpu",
+    "threads": 1
+  },
+  "code_sha256": "596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403",
+  "script_sha256": "a298c946ee103d4d331256fd6ce11ca5a6d2915390ebb2bb632da85a6dff900d",
+  "config": {
+    "width": 32,
+    "layers": 1,
+    "heads": 4,
+    "seq_len": 32,
+    "batch_size": 4,
+    "precision": "FP32",
+    "warmup_updates": 3,
+    "measured_updates": 20
+  },
+  "benchmarks": [
+    {
+      "repeat": 2,
+      "injected_wait_seconds": 0.004,
+      "mean_phase_ms": {
+        "data_wait": 4.311874999621068,
+        "forward": 0.635270000930177,
+        "backward": 0.6619449992285809,
+        "clip_update": 0.6636099995375844
+      },
+      "median_step_ms": 6.177799998113187,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    },
+    {
+      "repeat": 0,
+      "injected_wait_seconds": 0.0,
+      "mean_phase_ms": {
+        "data_wait": 0.021424999795272015,
+        "forward": 0.49490500095998874,
+        "backward": 0.6831849997979589,
+        "clip_update": 0.6319649994111387
+      },
+      "median_step_ms": 1.7221000016434118,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    },
+    {
+      "repeat": 1,
+      "injected_wait_seconds": 0.0,
+      "mean_phase_ms": {
+        "data_wait": 0.022349999198922887,
+        "forward": 0.5223400006798329,
+        "backward": 0.6402350001735613,
+        "clip_update": 0.6171550001454307
+      },
+      "median_step_ms": 1.7371499998262152,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    },
+    {
+      "repeat": 2,
+      "injected_wait_seconds": 0.0,
+      "mean_phase_ms": {
+        "data_wait": 0.029490000451914966,
+        "forward": 0.5965700005617691,
+        "backward": 0.7097799996699905,
+        "clip_update": 0.6772699995053699
+      },
+      "median_step_ms": 1.9744999990507495,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    },
+    {
+      "repeat": 1,
+      "injected_wait_seconds": 0.004,
+      "mean_phase_ms": {
+        "data_wait": 4.265820000364329,
+        "forward": 0.7806099994922988,
+        "backward": 0.7597300002089469,
+        "clip_update": 0.78003999988141
+      },
+      "median_step_ms": 6.549100002303021,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    },
+    {
+      "repeat": 0,
+      "injected_wait_seconds": 0.004,
+      "mean_phase_ms": {
+        "data_wait": 4.293470000993693,
+        "forward": 0.6921250005689217,
+        "backward": 0.7300849996681791,
+        "clip_update": 0.7602400000905618
+      },
+      "median_step_ms": 6.441900004574563,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": null,
+      "top_self_cpu_events": null
+    }
+  ],
+  "profiled": {
+    "wait": {
+      "mean_phase_ms": {
+        "data_wait": 4.504725000515464,
+        "forward": 1.425895000284072,
+        "backward": 1.6285099995002383,
+        "clip_update": 1.6262199998891447
+      },
+      "median_step_ms": 8.770000000367872,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": {
+        "case/data_wait": 88.43119999999993,
+        "case/forward": 28.25280000000004,
+        "case/backward": 32.328799999999994,
+        "case/clip_update": 32.3456
+      },
+      "top_self_cpu_events": [
+        {
+          "name": "case/data_wait",
+          "self_cpu_ms": 87.37690000000002,
+          "calls": 20,
+          "self_cpu_memory_bytes": 0
+        },
+        {
+          "name": "case/forward",
+          "self_cpu_ms": 8.514199999999937,
+          "calls": 20,
+          "self_cpu_memory_bytes": -5130240
+        },
+        {
+          "name": "Optimizer.step#AdamW.step",
+          "self_cpu_ms": 8.471299999999767,
+          "calls": 20,
+          "self_cpu_memory_bytes": -3522560
+        },
+        {
+          "name": "case/backward",
+          "self_cpu_ms": 7.9367000000001715,
+          "calls": 20,
+          "self_cpu_memory_bytes": -80
+        },
+        {
+          "name": "case/clip_update",
+          "self_cpu_ms": 4.321500000000011,
+          "calls": 20,
+          "self_cpu_memory_bytes": -2960
+        },
+        {
+          "name": "aten::mm",
+          "self_cpu_ms": 3.708299999999683,
+          "calls": 240,
+          "self_cpu_memory_bytes": 7877120
+        },
+        {
+          "name": "aten::_to_copy",
+          "self_cpu_ms": 3.351900000000267,
+          "calls": 1640,
+          "self_cpu_memory_bytes": 0
+        },
+        {
+          "name": "aten::empty_strided",
+          "self_cpu_ms": 2.666600000000028,
+          "calls": 1700,
+          "self_cpu_memory_bytes": 416240
+        }
+      ]
+    },
+    "removed": {
+      "mean_phase_ms": {
+        "data_wait": 0.04106500018679071,
+        "forward": 0.8429499997873791,
+        "backward": 1.220225000724895,
+        "clip_update": 1.3667449995409697
+      },
+      "median_step_ms": 3.347499998199055,
+      "model_sha256": "c92fc73c0db0d5ae0a3cd00700e634ec70c2c7ed10cccabe4273573462902237",
+      "profiled_phase_total_ms": {
+        "case/data_wait": 0.604100000000001,
+        "case/forward": 16.739600000000017,
+        "case/backward": 24.216800000000028,
+        "case/clip_update": 27.19829999999999
+      },
+      "top_self_cpu_events": [
+        {
+          "name": "Optimizer.step#AdamW.step",
+          "self_cpu_ms": 7.062600000000048,
+          "calls": 20,
+          "self_cpu_memory_bytes": -3522560
+        },
+        {
+          "name": "case/backward",
+          "self_cpu_ms": 5.146100000000096,
+          "calls": 20,
+          "self_cpu_memory_bytes": -80
+        },
+        {
+          "name": "case/forward",
+          "self_cpu_ms": 4.20630000000007,
+          "calls": 20,
+          "self_cpu_memory_bytes": -5130240
+        },
+        {
+          "name": "case/clip_update",
+          "self_cpu_ms": 3.2565999999999917,
+          "calls": 20,
+          "self_cpu_memory_bytes": -2960
+        },
+        {
+          "name": "aten::mm",
+          "self_cpu_ms": 3.002399999999978,
+          "calls": 240,
+          "self_cpu_memory_bytes": 7877120
+        },
+        {
+          "name": "aten::_to_copy",
+          "self_cpu_ms": 2.771699999999792,
+          "calls": 1640,
+          "self_cpu_memory_bytes": 0
+        },
+        {
+          "name": "aten::empty_strided",
+          "self_cpu_ms": 2.3044000000002645,
+          "calls": 1700,
+          "self_cpu_memory_bytes": 416240
+        },
+        {
+          "name": "aten::copy_",
+          "self_cpu_ms": 2.2920000000000313,
+          "calls": 2060,
+          "self_cpu_memory_bytes": 0
+        }
+      ]
+    }
+  },
+  "model_states_identical": true,
+  "median_of_repeat_step_medians_ms": {
+    "0.004": 6.441900004574563,
+    "0.0": 1.7371499998262152
+  },
+  "scope": "CPU controlled delay case; phase timings exclude eval/checkpoint; record_function overhead remains even outside profiler; no MFU or GPU speed claim",
+  "execution_date": "2026-10-15"
+}

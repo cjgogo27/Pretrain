@@ -8,12 +8,13 @@
     "precision": "FP32",
     "threads": 1
   },
-  "code_sha256": "1aa57e7ad787e8446db35a25883864381e645800222a3fcba0eee7db2fe53c6b",
-  "base_git_revision_at_execution": "53a23ae09156e5f2ef0384c25e278a7a4440cdc6",
+  "code_sha256": "596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403",
+  "base_git_revision_at_execution": "c15e884458ed4890fd233f42ff6d30350b465c69",
   "working_tree_modified_at_execution": true,
   "config": {
     "device": "cpu",
     "stop_after": null,
+    "domain_weight": null,
     "steps": 100,
     "batch_size": 4,
     "seq_len": 64,
@@ -66,6 +67,10 @@
       "ppl": 108.03816102751844,
       "lr": 0.00029185850380609757,
       "grad_norm": 1.9220445156097412,
+      "elapsed_seconds": 0.30587690000538714,
+      "tokens_per_second": 16738.75993875257,
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
       "eval_tokens": 1024
     },
     {
@@ -76,6 +81,10 @@
       "ppl": 58.810932641276985,
       "lr": 0.00023249999999999999,
       "grad_norm": 1.8167004585266113,
+      "elapsed_seconds": 0.606272800003353,
+      "tokens_per_second": 16890.086442841188,
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
       "eval_tokens": 1024
     },
     {
@@ -86,6 +95,10 @@
       "ppl": 39.95005295447805,
       "lr": 0.0001415574960149644,
       "grad_norm": 2.2318806648254395,
+      "elapsed_seconds": 0.9242214000041713,
+      "tokens_per_second": 16619.394443723846,
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
       "eval_tokens": 1024
     },
     {
@@ -96,6 +109,10 @@
       "ppl": 33.518878009903005,
       "lr": 6.158400017893799e-05,
       "grad_norm": 2.198925018310547,
+      "elapsed_seconds": 1.238564100000076,
+      "tokens_per_second": 16535.27661588023,
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
       "eval_tokens": 1024
     },
     {
@@ -106,6 +123,10 @@
       "ppl": 31.266834369081057,
       "lr": 2.9999999999999997e-05,
       "grad_norm": 1.756735920906067,
+      "elapsed_seconds": 1.5231936000054702,
+      "tokens_per_second": 16806.793305793868,
+      "eval_windows_global": 16,
+      "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8",
       "eval_tokens": 1024
     }
   ],
@@ -167,14 +188,14 @@
         "kind": "weights_only",
         "source_step": 100,
         "source_tokens": 25600,
-        "source_checkpoint_sha256": "435ff1c2b9d00c75d93d6693b1576da1c42a7cb31b54ca60eab585b9b9ceac99"
+        "source_checkpoint_sha256": "8d0c2411a03d430631ffa50ca00bbe585f6fbeffc92c9fef476d94327e887d5a"
       },
       "data_hashes": {
         "train.txt": "bac2f0db67cb88152eb68d643c5cf89662c281771b1f0447988135df24641c44",
         "val.txt": "ff8786edacddc40b64ed5e3107b876df75fe23bbad4706574127189681d20700",
         "tokenizer": "utf8-bytes-0-255,eos-256"
       },
-      "code_sha256": "1aa57e7ad787e8446db35a25883864381e645800222a3fcba0eee7db2fe53c6b",
+      "code_sha256": "596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403",
       "eval_windows_global": 16,
       "eval_indices_sha256": "3491b6c4273c8ab5d5ac10121029a78bf6a7541c663733cbf6951c7b74e0a9e8"
     },
@@ -184,8 +205,16 @@
     "same_data_as_stage1": true
   },
   "supporting_code_sha256": {
-    "prepare_data.py": "727b963d9eca26ee1a665407f60abcf904199168b717032910573a1778b37099",
-    "verify_resume.py": "3871a1a15fe530dbfb0c5d78571a30275ba3ad5a5b72b00b39b5ca3659793741",
-    "verify_ddp.py": "56b5d268402a076e59f5894c31eecb80b0652b262142b050d6fd37bc093e84c4"
-  }
+    "cleaning_case.py": "5a96ed4da00fe01141d0634ad0f1cd7d78cf7b95fcd0423d65612b7087f87c16",
+    "launch_cpu.py": "426817c5632ac307242ea5441d04772337dbfdb2a5f0abf0b395b42279ce2e83",
+    "mixture_case.py": "505912442846ae157e3c6f5a761e1744b93c2645090e1e10bac693f32ce70945",
+    "parallel_case.py": "9746cd9f4ee97e5fbf6a390ef0c92d7f5a31eda055059be7a0ba72153abb6286",
+    "prepare_data.py": "676fa4c3b7bb59e49eca90fa6cd2aa6316352ff3ecacba0ad2932c330f4cc62d",
+    "profile_case.py": "a298c946ee103d4d331256fd6ce11ca5a6d2915390ebb2bb632da85a6dff900d",
+    "train.py": "596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403",
+    "verify_ddp.py": "56b5d268402a076e59f5894c31eecb80b0652b262142b050d6fd37bc093e84c4",
+    "verify_ddp_training.py": "c870387d81cdbad4de2512ba15e65040bd159e7d577fe042155961cb8cf4b954",
+    "verify_resume.py": "099483a97634299c0586a8c57e6c27a60a6a8a16b22eaa61524a347325a0b36e"
+  },
+  "default_regression": "All step/token/loss/PPL/lr/grad_norm points exactly match the previous default run; timings are newly observed."
 }

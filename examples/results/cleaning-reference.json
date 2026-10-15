@@ -1,0 +1,251 @@
+{
+  "purpose": "hand-labelled mechanism fixture, not web-quality estimation",
+  "rule_version": "cleaning-v1",
+  "input_sha256": "0de6279e67ecc8ba4203b41b5a6438bf821a668a1ec23551a50e81142d0eff2d",
+  "results": [
+    {
+      "threshold": 0.7,
+      "input_documents": 10,
+      "retained_documents": 4,
+      "retained_fraction": 0.4,
+      "reasons": {
+        "keep": 4,
+        "exact-duplicate": 1,
+        "near-duplicate": 2,
+        "length<40": 2,
+        "replacement-character": 1
+      },
+      "false_removals": [
+        "changed-claim",
+        "short-valid"
+      ],
+      "missed_removals": [
+        "paraphrase"
+      ],
+      "decisions": [
+        {
+          "id": "original",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "87d0d15f3845b45862f3326b90b430455291246168e4a83a6bd46ceaa431dcc3"
+        },
+        {
+          "id": "exact-copy",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "exact-duplicate",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "87d0d15f3845b45862f3326b90b430455291246168e4a83a6bd46ceaa431dcc3"
+        },
+        {
+          "id": "near-copy",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "near-duplicate",
+          "nearest": "original",
+          "jaccard": 0.9120879120879121,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。转载自学习记录。",
+          "normalized_sha256": "46d70bd9d1167f4c62f915cb99feacaa6104a4899e14ffb9b6256363c162bed6"
+        },
+        {
+          "id": "changed-claim",
+          "expected_keep": true,
+          "kept": false,
+          "reason": "near-duplicate",
+          "nearest": "original",
+          "jaccard": 0.8651685393258427,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先平均再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "7378ea08009446959c991438fccaaa3408faad398432eff6733aa79286ede00a"
+        },
+        {
+          "id": "paraphrase",
+          "expected_keep": false,
+          "kept": true,
+          "reason": "keep",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "保存训练现场时，要留住参数、AdamW历史与各进程随机数。重启后核对样本身份、更新次数、已消费目标位置数量，并拿固定留出片段复测。",
+          "normalized_sha256": "22e486424af1a5a015b7134c3c8b281eb93a7e7972c844ebabfba8a2d730cce8"
+        },
+        {
+          "id": "short-valid",
+          "expected_keep": true,
+          "kept": false,
+          "reason": "length<40",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "交叉熵损失用自然对数时，PPL=exp(loss)。",
+          "normalized_sha256": "6e092b40d22426f50d21386ca48446befded4b1fb6383bf011295bf9b2a9a7c9"
+        },
+        {
+          "id": "broken",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "replacement-character",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "无效解码������������������������������",
+          "normalized_sha256": "e3157b303854cd13c054a62f8b7da78e64310d687f21ad846ba80102c9ebfc5d"
+        },
+        {
+          "id": "navigation",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "length<40",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "",
+          "normalized_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "id": "code",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.005434782608695652,
+          "normalized_text": "def average(total_loss, valid_tokens):\n    # Preserve indentation when cleaning code.\n    return total_loss / valid_tokens",
+          "normalized_sha256": "3324be960efa369b07d6c31baddb96cf6d7c38b50986cb5ebc7bfaa2e4b1f0c5"
+        },
+        {
+          "id": "other",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.013245033112582781,
+          "normalized_text": "数据配比的分母必须说明是文档、字节还是token。相同抽样概率不保证相同文档数，重复消费量也不能当作唯一数据量。应同时报告各来源的保留率和样本身份。",
+          "normalized_sha256": "3fccc125a89cf1c062c04c107ebb3edb562588ffdfdb4acffc9698ddb7981d86"
+        }
+      ]
+    },
+    {
+      "threshold": 0.95,
+      "input_documents": 10,
+      "retained_documents": 6,
+      "retained_fraction": 0.6,
+      "reasons": {
+        "keep": 6,
+        "exact-duplicate": 1,
+        "length<40": 2,
+        "replacement-character": 1
+      },
+      "false_removals": [
+        "short-valid"
+      ],
+      "missed_removals": [
+        "near-copy",
+        "paraphrase"
+      ],
+      "decisions": [
+        {
+          "id": "original",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "87d0d15f3845b45862f3326b90b430455291246168e4a83a6bd46ceaa431dcc3"
+        },
+        {
+          "id": "exact-copy",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "exact-duplicate",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "87d0d15f3845b45862f3326b90b430455291246168e4a83a6bd46ceaa431dcc3"
+        },
+        {
+          "id": "near-copy",
+          "expected_keep": false,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.9120879120879121,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先求和再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。转载自学习记录。",
+          "normalized_sha256": "46d70bd9d1167f4c62f915cb99feacaa6104a4899e14ffb9b6256363c162bed6"
+        },
+        {
+          "id": "changed-claim",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.8651685393258427,
+          "normalized_text": "训练日志应记录数据版本、优化器步数和累计有效token。梯度归约先平均再按全局有效token数归一化。检查点保存权重、优化器和每个rank的随机状态，恢复后用固定验证窗口检查结果。",
+          "normalized_sha256": "7378ea08009446959c991438fccaaa3408faad398432eff6733aa79286ede00a"
+        },
+        {
+          "id": "paraphrase",
+          "expected_keep": false,
+          "kept": true,
+          "reason": "keep",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "保存训练现场时，要留住参数、AdamW历史与各进程随机数。重启后核对样本身份、更新次数、已消费目标位置数量，并拿固定留出片段复测。",
+          "normalized_sha256": "22e486424af1a5a015b7134c3c8b281eb93a7e7972c844ebabfba8a2d730cce8"
+        },
+        {
+          "id": "short-valid",
+          "expected_keep": true,
+          "kept": false,
+          "reason": "length<40",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "交叉熵损失用自然对数时，PPL=exp(loss)。",
+          "normalized_sha256": "6e092b40d22426f50d21386ca48446befded4b1fb6383bf011295bf9b2a9a7c9"
+        },
+        {
+          "id": "broken",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "replacement-character",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "无效解码������������������������������",
+          "normalized_sha256": "e3157b303854cd13c054a62f8b7da78e64310d687f21ad846ba80102c9ebfc5d"
+        },
+        {
+          "id": "navigation",
+          "expected_keep": false,
+          "kept": false,
+          "reason": "length<40",
+          "nearest": null,
+          "jaccard": 0.0,
+          "normalized_text": "",
+          "normalized_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "id": "code",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.005434782608695652,
+          "normalized_text": "def average(total_loss, valid_tokens):\n    # Preserve indentation when cleaning code.\n    return total_loss / valid_tokens",
+          "normalized_sha256": "3324be960efa369b07d6c31baddb96cf6d7c38b50986cb5ebc7bfaa2e4b1f0c5"
+        },
+        {
+          "id": "other",
+          "expected_keep": true,
+          "kept": true,
+          "reason": "keep",
+          "nearest": "original",
+          "jaccard": 0.013245033112582781,
+          "normalized_text": "数据配比的分母必须说明是文档、字节还是token。相同抽样概率不保证相同文档数，重复消费量也不能当作唯一数据量。应同时报告各来源的保留率和样本身份。",
+          "normalized_sha256": "3fccc125a89cf1c062c04c107ebb3edb562588ffdfdb4acffc9698ddb7981d86"
+        }
+      ]
+    }
+  ],
+  "execution_date": "2026-10-15"
+}

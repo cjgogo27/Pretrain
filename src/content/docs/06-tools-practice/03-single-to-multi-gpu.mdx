@@ -66,7 +66,40 @@ python examples/verify_ddp.py
 
 本机 `torchrun` 默认 TCPStore 受 libuv 支持限制；该对照脚本显式创建 `TCPStore(use_libuv=False)` 并启动两个 Gloo 进程。运行中出现地址连接重试警告，最终完成并通过。成功会打印 `status: PASS` 和误差；若构建无 Gloo、端口不可用或超时，应保留错误，不能把它记为通过。
 
-产物是终端 JSON 和测试自己的临时文件（结束时清理）。它证明该固定样本、单步数值路径在这套 CPU 环境等价；**没有验证完整多步 DDP 训练 / 恢复，也没有验证 CUDA、NCCL、多机或扩展性能**。
+产物是终端 JSON 和测试自己的临时文件（结束时清理）。这个脚本只验证单步数值路径；多步与真实训练循环由下面另一项实验覆盖，不能混作同一测试。
+
+## 从一次更新走到多步与重启
+
+```bash
+python examples/verify_ddp_training.py --out runs/ddp-training
+```
+
+程序生成 `report.json` 和 continuous / paused / resumed 三份日志，包含两层检查。都已在 Windows / Python 3.12.5 / PyTorch 2.11.0+cpu 上实际运行，FP32、每进程 1 线程、两进程 Gloo；使用 `TCPStore(use_libuv=False)`。
+
+**第一层：同样本，比较五次更新。** 模型 width=16、1 层、S=8；每更新固定 8 个全局窗口，共 64 个目标位置。单进程一次读取全部；DDP 按窗口索引 `rank::2` 划分，每 rank B=2、A=2。第一个微批次的前向与反向都在 `no_sync` 内，每个局部平均 loss 除以 2，第二个微批次归约后才裁剪、AdamW 更新。完整梯度副本的裁剪阈值 0.2，每步实测均触发裁剪。
+
+| 五步内、两 rank、全部参数的比较 | 实测最大绝对差 |
+| --- | --- |
+| 裁剪前梯度 | 3.7253e-08 |
+| 裁剪前范数 | 5.9605e-08 |
+| 每步更新后参数 | 2.5115e-07 |
+
+逐参数使用 `atol=1e-6, rtol=1e-4` 验收，五步均通过。它检查相同输入 / 初始化 / 更新配置的数值等价；不同布局的归约顺序不同，不要求逐位一致。完整 DDP 副本的本地范数裁剪不能直接照搬到分片参数。
+
+**第二层：直接运行 `train.run`，比较同布局恢复。** 模型 width=32、1 层、S=16、每 rank B=2、A=2、DP=2，每更新 `2×16×2×2=128 token`。使用领域概率 0.5，计划均为 8 步：一条连续运行，另一条在第 4 次更新边界正常保存退出，用新进程恢复到第 8 步。
+
+最终 **step=8、tokens=1,024**；模型、AdamW、两 rank 各自的 Python / torch / 采样随机状态、领域消费量与计数逐元素一致。最终 lr、train / val loss、范数、验证索引身份和生成文件也一致。全局领域 / 通用消费为 480 / 544 token。更改配比或领域池文件后严格恢复均拒绝。完整结果见 [ddp-training-reference.json](https://github.com/cjgogo27/Pretrain/blob/main/examples/results/ddp-training-reference.json)。
+
+想自己观察日志，可使用同一个轻量启动入口：
+
+```bash
+python examples/prepare_data.py --out runs/ddp-data --pools
+python examples/launch_cpu.py --data runs/ddp-data --out runs/ddp-demo --steps 8 --warmup 2 --width 32 --layers 1 --seq-len 16 --batch-size 2 --accum 2 --eval-every 4 --eval-windows 8 --domain-weight 0.5 --clip 0.2
+```
+
+`launch_cpu.py` 只负责两进程本机 rendezvous，随后调用原训练函数，不另写训练逻辑。端口 / Gloo 不可用会失败，不能当作通过；目录冲突时另选 `--out`。本机有地址连接重试警告，最终完成。原生诊断与 Python 编码可能混用，验证捕获使用 UTF-8 并替换无法解码字节，仍核对 ASCII 错误身份。
+
+成功条件是两层断言全通过，不是只见 loss 下降。第二层验证的是**同布局、更新边界的正常保存和进程重启**，不是写盘中途断电或 rank 崩溃。没有验证 AMP、分片、CUDA/NCCL、多机、弹性改卡数或扩展性能；8 步也不是长时间稳定性验收。
 
 ## 然后再测扩展效率
 

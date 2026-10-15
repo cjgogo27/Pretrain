@@ -25,6 +25,8 @@ title: "在校学生阅读路线"
 
 [1.3](/Pretrain/01-system-overview/03-pretraining-system-architecture/) → [2.4](/Pretrain/02-data-tokenization/04-packing-and-loading/) → [4.1](/Pretrain/04-training-distributed/01-loss-and-gradients/) → **[6.1 环境准备](/Pretrain/06-tools-practice/01-engineering-and-environment/)** → [6.2](/Pretrain/06-tools-practice/02-minimal-pretraining/)。先在虚拟环境安装 CPU 依赖，再生成语料和训练；不必为运行教学实验安装网站依赖。
 
-第一次运行后，核对 437,888 参数、每更新 256 token 和 100 步的 25,600 token；对照正文曲线和生成片段，再运行恢复验证。理解单步后再做 [6.3 固定样本 DDP 对照](/Pretrain/06-tools-practice/03-single-to-multi-gpu/)。最后读[训练阶段怎样连接](/Pretrain/00-reading-guides/04-training-stages/)，把数据、学习率和长度放回同一条 token 轴。
+第一次运行后，核对 437,888 参数、每更新 256 token 和 100 步的 25,600 token；对照正文曲线和生成片段，再运行恢复验证。理解单步后再做 [6.3 固定样本与多步恢复对照](/Pretrain/06-tools-practice/03-single-to-multi-gpu/)。最后读[训练阶段怎样连接](/Pretrain/00-reading-guides/04-training-stages/)，把数据、学习率和长度放回同一条 token 轴。
+
+有余力时，运行 2.2 的十文档清洗，解释一次误删与漏删；再用 2.1 的三个配对种子比较领域与通用 loss。4.5 的 TP 代数和 PP 时间线可以离线核对，5.4 的 CPU 等待实验用于理解“证据→最小改动→复测”。不必第一遍全部运行。
 
 记录实验时写“我检查了什么、看到了什么、它能支持什么结论”。示例文本质量差不代表你没学会系统；它的规模和语料本来只为机制演示设计。

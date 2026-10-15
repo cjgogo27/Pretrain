@@ -1,0 +1,13 @@
+<figure class="tensor-split" aria-label="两路张量并行的前馈网络，第一矩阵按列切，第二矩阵按行切，最后求和">
+  <figcaption><strong>同一个 X[6,4] → 两个 FFN 分片 → 同一个 Z[6,4]</strong></figcaption>
+  <div class="branches">
+    {[0, 1].map(shard => <div class="branch"><strong>分片 {shard}</strong><p>X[6,4] × W₁{shard}[4,4]</p><p>↓ GELU，得到 H{shard}[6,4]</p><p>× W₂{shard}[4,4]</p><p>↓ 局部贡献 Z{shard}[6,4]</p></div>)}
+  </div>
+  <p class="sum">↓ SUM：Z = Z₀ + Z₁，形状 [6,4]</p>
+  <p>反向：每路产生对 X 的局部梯度，求和后才是完整 dX。两个分片处理相同输入，不是两个数据副本。</p>
+</figure>
+<style>
+  .tensor-split { border: 1px solid var(--sl-color-gray-4); border-radius: .6rem; padding: 1rem; margin-block: 1.5rem; font-size: .9rem; }
+  .branches { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin-top: .8rem; }.branch { padding: .8rem; background: var(--sl-color-accent-low); border-radius: .4rem; }.branch p { margin-block: .5rem; }.sum { text-align: center; font-weight: bold; }
+  @media (max-width: 36rem) { .branches { grid-template-columns: 1fr; } }
+</style>

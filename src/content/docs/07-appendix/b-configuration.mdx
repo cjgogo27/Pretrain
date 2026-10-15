@@ -9,6 +9,7 @@ title: "附录 B 配置字段与接口约定"
 | 字段 | 默认值 | 含义与约束 |
 | --- | --- | --- |
 | `--data` | `runs/data` | 含 train.txt、val.txt 的目录 |
+| `--domain-weight` | 不设 | 可选领域窗口概率 [0,1]；需额外 train-domain.txt / train-general.txt，属于严格恢复计划 |
 | `--out` | `runs/tiny` | 本次运行输出目录 |
 | `--device` | `cpu` | `cpu` 或 `cuda`；CUDA 需环境支持 |
 | `--steps` | 100 | 整体计划优化器更新次数 |
@@ -36,6 +37,8 @@ title: "附录 B 配置字段与接口约定"
 | --- | --- |
 | step | 已完成的优化器更新次数 |
 | tokens | 已完成更新消费的全局有效训练 token；包含重复窗口 |
+| domain_tokens / general_tokens | 仅分池模式记录的全局累计消费目标位置；两者之和为 tokens，非唯一数据量 |
+| actual_domain_fraction | domain_tokens / tokens；不是请求的采样概率 |
 | train_loss | 最近一次更新中各微批次、rank 的 token 平均损失 |
 | val_loss | 同一全局固定窗口列表，按 rank 间隔切分后，NLL 总和 / 有效 token 总数 |
 | ppl | `exp(val_loss)`；若超出实现的指数范围输出 null，不伪造截断 PPL；仅在同编码与口径下比较 |
@@ -46,7 +49,7 @@ title: "附录 B 配置字段与接口约定"
 
 ## 检查点约定
 
-保存模型、AdamW、更新步、token、配置、代码版本与规范化 train.py 哈希、数据身份、初始化来源和各 rank 随机状态。严格恢复核对格式 / 代码身份、数据 / 编码、PyTorch 版本、world size 与核心计划，代码身份缺失也拒绝。Git HEAD 作为来源记录，纯文档提交可不影响相同训练代码。输出目录、验证窗口数 / 频率和提前停止点可改变；这些测量设置不消耗训练随机流，但变化后指标口径可能不再可比。
+保存模型、AdamW、更新步、token、配置、代码版本与规范化 train.py 哈希、数据身份、初始化来源和各 rank 随机状态。严格恢复核对格式 / 代码身份、数据 / 编码、PyTorch 版本、world size 与核心计划，代码身份缺失也拒绝。Git HEAD 作为来源记录，纯文档提交可不影响相同训练代码。分池模式同时保存领域消费计数并核对两个池文件与采样概率。输出目录、验证窗口数 / 频率和提前停止点可改变；这些测量设置不消耗训练随机流，但变化后指标口径可能不再可比。
 
 `--eval-batches` 仅保留作旧命令兼容入口：显式传入时令全局窗口数等于该值×batch-size，不再为每 rank 生成不同窗口；新命令使用 `--eval-windows`。
 

@@ -25,7 +25,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 VOCAB = 257
 TOKENIZER = "utf8-bytes-0-255,eos-256"
 CORE_KEYS = ["steps", "batch_size", "seq_len", "accum", "width", "layers", "heads", "lr",
-             "warmup", "weight_decay", "clip", "seed", "device", "threads"]
+             "warmup", "weight_decay", "clip", "seed", "device", "threads", "domain_weight"]
 
 def code_sha256():
     """Training identity, normalizing UTF-8 BOM/line endings; not a signature.
@@ -74,20 +74,28 @@ class TinyLM(nn.Module):
             hidden = block(hidden, src_mask=mask, is_causal=True)
         return self.head(self.norm(hidden))
 
-def read_data(folder, seq_len):
+def encode_documents(raw):
+    docs = [doc for doc in raw.decode("utf8").strip().split("\n\n") if doc.strip()]
+    tokens = []
+    for doc in docs:
+        tokens.extend(doc.encode("utf8"))
+        tokens.append(256)
+    return torch.tensor(tokens, dtype=torch.long)
+
+
+def read_data(folder, seq_len, domain_weight=None):
     streams, hashes = {}, {}
-    for split in ("train", "val"):
+    splits = ["train", "val"]
+    if domain_weight is not None:
+        splits += ["train-domain", "train-general"]
+    for split in splits:
         path = folder / f"{split}.txt"
         raw = path.read_bytes()
         hashes[path.name] = hashlib.sha256(raw).hexdigest()
-        docs = [doc for doc in raw.decode("utf8").strip().split("\n\n") if doc.strip()]
-        tokens = []
-        for doc in docs:
-            tokens.extend(doc.encode("utf8"))
-            tokens.append(256)
+        tokens = encode_documents(raw)
         if len(tokens) <= seq_len:
             raise ValueError(f"{split} needs more than seq_len tokens")
-        streams[split] = torch.tensor(tokens, dtype=torch.long)
+        streams[split] = tokens
     hashes["tokenizer"] = TOKENIZER
     return streams, hashes
 
@@ -95,6 +103,26 @@ def batch(stream, size, length, generator, device):
     starts = torch.randint(len(stream) - length, (size,), generator=generator)
     windows = torch.stack([stream[int(i):int(i) + length + 1] for i in starts])
     return windows[:, :-1].to(device), windows[:, 1:].to(device)
+
+
+def training_batch(streams, args, generator, device):
+    """Equal-length windows: a pool draw contributes exactly seq_len targets.
+
+    A window stays inside its pool (but may cross documents/EOS). Report actual
+    consumed targets, not unique bytes or the requested probability.
+    """
+    if args.domain_weight is None:
+        x, y = batch(streams["train"], args.batch_size, args.seq_len, generator, device)
+        return x, y, 0
+    domain = torch.rand(args.batch_size, generator=generator) < args.domain_weight
+    windows = []
+    for selected in domain.tolist():
+        stream = streams["train-domain" if selected else "train-general"]
+        start = int(torch.randint(len(stream) - args.seq_len, (), generator=generator))
+        windows.append(stream[start:start + args.seq_len + 1])
+    windows = torch.stack(windows)
+    return (windows[:, :-1].to(device), windows[:, 1:].to(device),
+            int(domain.sum()) * args.seq_len)
 
 def learning_rate(step, args):
     if args.warmup and step <= args.warmup:
@@ -150,7 +178,7 @@ def git_revision():
     except (OSError, subprocess.CalledProcessError):
         return "unavailable"
 
-def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization):
+def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization, domain_tokens):
     local = rng_state(generator, device)
     states = [None] * world
     if world > 1:
@@ -163,7 +191,7 @@ def save_checkpoint(model, optimizer, generator, step, tokens, hashes, args, ran
                    "config": vars(args), "rng_states": states, "torch_version": str(torch.__version__),
                    "code_revision": git_revision(),
                    "code_sha256": code_sha256(), "code_identity": "train.py:utf8-lf:sha256-v1",
-                   "initialization": initialization}
+                   "initialization": initialization, "domain_tokens": domain_tokens}
         target = Path(args.out) / "latest.pt"
         temporary = target.with_suffix(".pt.tmp")
         torch.save(payload, temporary)
@@ -191,6 +219,7 @@ def parse_args():
     initialization.add_argument("--resume")
     initialization.add_argument("--init-weights", help="Trusted checkpoint weights only; new optimizer, schedule and counters")
     parser.add_argument("--stop-after", type=int)
+    parser.add_argument("--domain-weight", type=float, help="Optional probability of equal-length train-domain windows; requires train-general too")
     for name, default in [("steps", 100), ("batch-size", 4), ("seq-len", 64), ("accum", 1),
                           ("width", 128), ("layers", 2), ("heads", 4), ("warmup", 10),
                           ("eval-every", 20), ("eval-windows", 16), ("seed", 42), ("threads", 1)]:
@@ -212,6 +241,8 @@ def parse_args():
         parser.error("Invalid model/optimizer configuration")
     if args.stop_after is not None and not 0 < args.stop_after <= args.steps:
         parser.error("stop-after must be in 1..steps")
+    if args.domain_weight is not None and not 0 <= args.domain_weight <= 1:
+        parser.error("domain-weight must be in 0..1")
     return args
 
 def run(args):
@@ -223,17 +254,17 @@ def run(args):
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is not available; use CPU or install a matching CUDA build")
         torch.cuda.set_device(device)
-    if world > 1:
+    if world > 1 and not dist.is_initialized():
         dist.init_process_group("nccl" if args.device == "cuda" else "gloo")
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.use_deterministic_algorithms(True)
-    streams, hashes = read_data(Path(args.data), args.seq_len)
+    streams, hashes = read_data(Path(args.data), args.seq_len, args.domain_weight)
     raw_model = TinyLM(args.width, args.layers, args.heads, args.seq_len).to(device)
     model = DDP(raw_model, device_ids=[local_rank] if device.type == "cuda" else None) if world > 1 else raw_model
     optimizer = torch.optim.AdamW(raw_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     generator = torch.Generator().manual_seed(args.seed + 1000 + rank)
-    step, tokens = 0, 0
+    step, tokens, domain_tokens = 0, 0, 0
     initialization = {"kind": "scratch"}
     if args.init_weights:
         source = torch.load(args.init_weights, map_location="cpu", weights_only=False)
@@ -265,6 +296,7 @@ def run(args):
         raw_model.load_state_dict(state["model"])
         optimizer.load_state_dict(state["optimizer"])
         step, tokens = state["step"], state["tokens"]
+        domain_tokens = state["domain_tokens"]
         initialization = state["initialization"]
         restore_rng(state["rng_states"][rank], generator, device)
     target_step = args.stop_after or args.steps
@@ -290,10 +322,12 @@ def run(args):
         for group in optimizer.param_groups:
             group["lr"] = lr
         average_loss = torch.zeros((), device=device)
+        local_domain_tokens = 0
         for micro in range(args.accum):
             context = model.no_sync() if world > 1 and micro < args.accum - 1 else nullcontext()
             with context:
-                x, y = batch(streams["train"], args.batch_size, args.seq_len, generator, device)
+                x, y, consumed_domain = training_batch(streams, args, generator, device)
+                local_domain_tokens += consumed_domain
                 logits = model(x)
                 loss = F.cross_entropy(logits.reshape(-1, VOCAB), y.reshape(-1))
                 if not torch.isfinite(loss):
@@ -304,12 +338,17 @@ def run(args):
         optimizer.step()
         step += 1
         tokens += args.batch_size * args.seq_len * args.accum * world
+        if args.domain_weight is not None:
+            count = torch.tensor(local_domain_tokens, dtype=torch.long, device=device)
+            if world > 1:
+                dist.all_reduce(count)
+            domain_tokens += int(count.item())
         if step % args.eval_every == 0 or step == target_step:
             if world > 1:
                 dist.all_reduce(average_loss)
                 average_loss /= world
             val_loss = evaluate(raw_model, streams["val"], args, rank, world, device)
-            save_checkpoint(raw_model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization)
+            save_checkpoint(raw_model, optimizer, generator, step, tokens, hashes, args, rank, world, device, initialization, domain_tokens)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)
             elapsed = time.perf_counter() - started
@@ -320,6 +359,9 @@ def run(args):
                       "eval_windows_global": args.eval_windows,
                       "eval_indices_sha256": validation_identity(streams["val"], args),
                       "eval_tokens": args.eval_windows * args.seq_len}
+            if args.domain_weight is not None:
+                record.update(domain_tokens=domain_tokens, general_tokens=tokens - domain_tokens,
+                              actual_domain_fraction=domain_tokens / tokens)
             if rank == 0:
                 with (out / "metrics.jsonl").open("a", encoding="utf8") as handle:
                     handle.write(json.dumps(record) + "\n")

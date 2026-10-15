@@ -50,6 +50,8 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 旧格式快照不能被悄悄当成格式 2 严格恢复。若只需要旧权重，应使用 [6.4 的新运行入口](/Pretrain/06-tools-practice/04-continued-pretraining/)，重新建立优化器和计数，并明确它不等于继续原轨迹。
 
+分池采样时，配比也是训练计划的一部分；检查点保存全局领域消费计数，两个池文件都进入数据指纹。更改概率或池内容均拒绝严格恢复。两 rank 的更新边界暂停 / 重启已在 [6.3](/Pretrain/06-tools-practice/03-single-to-multi-gpu/)实际验证；它不模拟写盘中断或设备故障。
+
 ## 从故障中恢复也要留痕
 
 记录中断原因、最后成功检查点、恢复命令和重复消耗的 token。训练 token 可区分“已完成并保留的更新”和“故障后丢弃的实际计算”；只报一个数会混淆优化进度与成本。

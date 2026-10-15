@@ -1,116 +1,104 @@
-# 实际验证记录：教学与技术修订
+# 实际验证记录：三组优先修订
 
-日期：2026-10-15（Asia/Shanghai）。本轮先拉取并通读原版，再复核发现、修改、运行检查。以下仅记录实际执行的工作；实验设计、预算假设和生产经验不混作本项目实测。
+日期：2026-10-15（Asia/Shanghai）。本轮只修订清洗/配比实跑、TP/PP与性能案例、多步DDP训练及恢复。保留六章29节87问答；部署、后训练和其他进阶专题未扩展。以下通过项均在本轮实际执行。
 
 ## 环境与执行身份
 
-- Windows，Python 3.12.5，PyTorch 2.11.0+cpu；训练使用 FP32、1 个 PyTorch CPU 线程、seed=42。
-- Node.js 24.14.0，npm 11.9.0，Astro 7.3.1、Starlight 0.42.0；依赖继续由锁文件及 Rolldown 1.2.13 override 固定。
-- 本轮执行时的基线 HEAD：`53a23ae09156e5f2ef0384c25e278a7a4440cdc6`，工作区已有修订。结果身份以规范化 train.py SHA-256 为准：`1aa57e7ad787e8446db35a25883864381e645800222a3fcba0eee7db2fe53c6b`。
-- 配置、数据身份、窗口索引、原始指标、生成字符串和代码检查结果保存在 [examples/results/cpu-reference.json](examples/results/cpu-reference.json)。它不包含模型权重或生产性能承诺。
+- Windows 11（10.0.26200）、Python 3.12.5、PyTorch 2.11.0+cpu，CUDA available=False。FP32训练、每进程1个CPU线程；TP代数对照使用FP64。
+- Node.js 24.14.0、npm 11.9.0；锁定Astro 7.3.1 / Starlight 0.42.0，未新增依赖。
+- 执行基线HEAD：c15e884458ed4890fd233f42ff6d30350b465c69，当时有本轮工作区修改。
+- 规范化train.py SHA-256：596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403。Git HEAD作来源，严格恢复仍核对训练文件身份。
+- 证据索引见[结果说明](examples/results/README.md)。JSON保存配置、身份、索引、实测与边界；完整权重、日志和约16MB/份trace留在忽略的runs/中。已提交全部160个profiler范围事件与原trace哈希，支持独立汇总。
 
-## 修改前实际复核
+## 清洗与配比实跑
 
-| 审阅发现 | 本轮复核结果 |
-| --- | --- |
-| 保存 code_revision / code_sha256，但恢复没有核对 | 代码阅读确认仍然存在 |
-| 学习率乘以 1.01 后仍接受严格恢复 | 在临时副本保存 4 步计划的第 2 步后修改实际 lr 计算，恢复退出码 0，问题复现 |
-| 原 CPU verify_resume.py 可通过 | 实际运行退出码 0，原 6 项检查通过 |
-| 原记录未完成 DDP / CUDA 验证 | 记录阅读确认；不能据此推断当前数值路径已验证 |
+实际执行：
 
-## 默认 CPU 100 步实跑
+    python examples/cleaning_case.py --out runs/priority-cleaning
+    python examples/mixture_case.py --out runs/priority-mixture-final
 
-本轮使用新的目录，实际执行：
+清洗使用十份原创、预先人工标注保留意图的文档：统一换行、明确导航行、替换字符/长度过滤、SHA-256精确去重、连续五字符集合Jaccard。不是MinHash。实际核对精确副本识别和代码四空格缩进保留。
 
-```bash
-python examples/prepare_data.py --out runs/revision-data
-python examples/train.py --data runs/revision-data --out runs/revision-default --steps 100
-```
+| Jaccard阈值 | 保留 | 误删 | 漏删 |
+| --- | --- | --- | --- |
+| 0.70 | 4/10 | changed-claim、short-valid | paraphrase |
+| 0.95 | 6/10 | short-valid | near-copy、paraphrase |
 
-默认 2 层、width=128、heads=4、seq-len=64，实际独立参数 **437,888**。B=4、A=1、DP=1，每更新 256 token；100 步累计 **25,600**。原创语料为 200 train / 40 val 文档，共用模板和主题。
+raw.jsonl与逐项report实际生成，发布摘要包含规范化文本、哈希、匹配对象、相似度和原因。夹具刻意包含边界样例，不估计网页错误率，未用于训练或测清洗收益。
 
-| step | 累计 token | 最近更新 train loss | 固定窗口 val loss | PPL |
+配比执行前保存design，以seed=2026打乱六次运行顺序；训练种子42/43/44各配对比较领域概率0.2/0.5。默认437,888参数、B4/S64/A1/DP1、100步，每次25,600个有效目标位置，其余优化计划相同。领域为优化器主题，通用为其余九主题；训练池20/180文档，含EOS的原始位置数5,684/51,256。
+
+| 种子 | A领域消费token | B领域消费token | 领域NLL：B−A | 通用NLL：B−A |
 | --- | --- | --- | --- | --- |
-| 20 | 5,120 | 4.748636 | 4.682485 | 108.0382 |
-| 40 | 10,240 | 4.109130 | 4.074328 | 58.8109 |
-| 60 | 15,360 | 3.588485 | 3.687630 | 39.9501 |
-| 80 | 20,480 | 3.602930 | 3.512109 | 33.5189 |
-| 100 | 25,600 | 3.687634 | 3.442558 | 31.2668 |
+| 42 | 4,928 | 12,032 | −0.07123165 | +0.00806963 |
+| 43 | 4,992 | 12,672 | −0.04270026 | +0.02401473 |
+| 44 | 4,352 | 12,800 | −0.08602060 | +0.01164870 |
 
-输出 `metrics.jsonl`、`latest.pt`、`sample.txt` 均产生。验证是固定全局 16 个窗口、1,024 个目标位置的估计，窗口可重叠。原始生成含乱码与控制字符；正文以 JSON 转义形式展示，没有人工改写成通顺输出。
+平均配对差−0.06665084 / +0.01457769 nats/token。最终每池固定64个S64验证窗口、4,096目标位置，seed=2026；六个模型共用该池索引，完整索引和哈希已保存。训练中默认16窗口日志另列。已核对六次均完成、两池计数和为25,600、loss有限、身份正确。初跑与最终脚本重跑数值相同，本表绑定最终重跑。
 
-使用已有 Matplotlib 从实际 JSON 绘制 [loss 图](public/figures/cpu-loss.svg)，并打开 PNG 预览检查了图的标签、图例和数值范围。此项是**独立曲线图片检查**，不是网站桌面 / 移动截图验收。单种子、模板语料与极小模型的 loss 改善，不支持通用能力结论。
+仅支持共用模板分布上的预测取舍。三个种子不是有统计功效的最优配比研究，窗口不能当独立训练重复，重复消费比不等于覆盖率。模板/主题留出未运行。
 
-## 严格恢复和新运行检查
+## TP/PP代数与调度
 
-```bash
-python examples/verify_resume.py
-```
+    python examples/parallel_case.py --out runs/priority-parallel
 
-本轮修改后实际通过 12 项检查：
+同进程FP64对比X[6,4]、W1[4,8]、W2[8,4]的原FFN与两路分解，输出、dX、dW1、dW2最大绝对差8.881784197001252e-16，atol=rtol=1e-12通过。检查两阶段四微批次GPipe的前后向依赖：20设备格有4格空闲，总时间口径20%；相对理想计算时间开销25%，分母明确区分。
 
-1. 改未来 token，历史 logits 不变。
-2. 输出形状正确。
-3. 固定 12 步计划：连续运行与第 6 步中断恢复的模型 / AdamW 逐元素一致。
-4. RNG、训练采样器与状态一致。
-5. 全局 token 计数为 768。
-6. 改训练数据后拒绝恢复。
-7. 将实际 lr 计算乘以 1.01 后，以代码身份不符拒绝恢复。
-8. 检查点缺失代码身份时拒绝恢复。
-9. 改 world size 字段时拒绝恢复。
-10. 改 PyTorch 版本字段时拒绝恢复。
-11. 改训练 lr 配置时以计划不符拒绝恢复。
-12. 数据变化后可以仅加载权重开始新运行，step/token 从零建立，AdamW 的内部 step 为新运行的更新数。
+16MiB payload及每rank前后向发送合计32MiB是经典ring AllReduce假设下的字节算例，没有真实TP/PP通信与耗时测量。
 
-另外实际执行默认模型的权重初始化新阶段：
+## CPU性能诊断
 
-```bash
-python examples/train.py --data runs/revision-data --out runs/revision-stage2 --steps 20 --lr 0.0001 --warmup 5 --init-weights runs/revision-default/latest.pt
-```
+    python examples/profile_case.py --out runs/priority-profile-final
 
-启动记录为 `weights_only, source_step=100, start_step=0, start_tokens=0`；结束为 step=20、tokens=5,120，并保留来源检查点哈希。使用的是相同语料，只证明初始化 / 状态重置机制；领域适应收益与通用遗忘对照没有执行。
+width32/1层/B4/S32，固定初始化和窗口，每次预热3步、测20步。明确注入4ms sleep，再移除；各三次非profiler基准，随机运行顺序，另各跑一次CPU profiler。
 
-格式版本 2 的代码身份只规范 UTF-8 BOM 与换行，未忽略源码、注释或空白修改。Git HEAD 保留为来源信息，不强制整个提交相同。哈希不是安全签名，不保证跨硬件逐位复现；旧格式不能自动视作已通过新约束的严格恢复。
+- 三次步中位数再取中位数：等待6.441900ms，移除1.737150ms。
+- profiler累计20步取数范围88.4312 / 0.6041ms；含等待条件前向28.2528、反向32.3288、裁剪更新32.3456ms。
+- 六次基准与两次profiler最终参数字节哈希相同；实际导出两份有效JSON trace，提取160个case事件，按名称汇总dur与report差小于0.001ms。
 
-## 实际两进程 CPU DDP 数值对照
+范围时间含等待，不等于CPU浮点忙碌；嵌套范围/子算子不能重复计费，内存归属不是峰值显存。没有GPU MFU、默认loader瓶颈或生产加速结论，未在trace查看器点击验收。profiler提示事件按周期清理；本次无循环schedule，已核对每条件完整20步、80个阶段事件。
 
-```bash
-python examples/verify_ddp.py
-```
+## 单进程与DDP恢复
 
-实际在本机完成两个 Gloo 进程。固定初始化与全部样本，rank 0 / rank 1 分别处理 100 / 900 个有效 token；局部 summed loss 按 `2/1000` 缩放，与单进程全局 token 平均比较。随后执行一次相同 AdamW 更新；无 AMP、无裁剪，以隔离归约。
+    python examples/verify_resume.py
+    python examples/verify_ddp.py
+    python examples/verify_ddp_training.py --out runs/priority-ddp
 
-| 比较 | 实测最大绝对差 | 验收条件 |
-| --- | --- | --- |
-| 全参数梯度 | 1.4901161193847656e-08 | atol=1e-6，rtol=1e-4 |
-| 一次更新后的参数 | 1.0496507485413531e-07 | atol=1e-6，rtol=1e-4 |
-| 固定窗口验证 loss | 1.9073486345888568e-07 | 绝对差 ≤ 1e-6 |
+1. 单进程12项重新通过：因果可见范围与形状；12步连续和6步保存恢复的模型/AdamW/RNG/采样器完全相同，768 token；数据、实际lr代码乘1.01、缺代码身份、world size、PyTorch版本、计划变更均拒绝；仅权重新运行重置状态。
+2. 原100/900有效token单步CPU Gloo对照通过：梯度最大差1.4901161193847656e-08、参数1.0496507485413531e-07、固定8窗口验证loss差1.9073486345888568e-07。
+3. 新五步相同全局样本对照：S8、每rank B2/A2、DP2，每更新64 token；首微批前后向no_sync，loss/2，最后同步后阈值0.2裁剪，五步均触发。最大差：梯度3.725290298461914e-08、裁剪前范数5.960464477539063e-08、参数2.51146389018686e-07，atol1e-6/rtol1e-4通过。
+4. 新真实循环：launch_cpu建立两进程Gloo后直接调用train.run。width32/1层/S16/B2/A2/DP2、领域概率0.5、总计划8步，比较连续与第4更新边界正常保存退出再以新进程恢复。最终step8、1,024 token、领域480/通用544；模型、AdamW、两rank随机/采样状态、消费计数逐元素一致，最终lr、loss、范数、验证身份与生成文件一致。改概率或池文件均拒绝恢复。
 
-全部逐参数检查通过。验证使用一个全局 8 窗口索引表，按 `indices[rank::2]` 分配，索引身份与单进程相同。它与默认 16 窗口报告是两项不同检查，未混成一组指标。
+默认torchrun的libuv限制未验证解除，启动器显式使用TCPStore(use_libuv=False)；有地址重试警告，最终完成。只验证正常更新边界保存/重启，不是中途写盘失败、rank崩溃、弹性恢复或长期稳定性。
 
-环境说明：默认 torchrun 的 libuv 限制仍存在；两次 FileStore 尝试返回 No such file or directory，未证实具体路径原因。最终通过显式 `TCPStore(use_libuv=False)` 避开该启动依赖；运行有地址重试警告，随后完成。没有把前面的失败记为通过。
+## 默认回归与仅权重初始化
 
-该结果覆盖固定样本、单步 CPU DDP 数值路径，**不覆盖完整多步 DDP 训练 / 恢复、CUDA / NCCL、多机或吞吐扩展**。
+    python examples/prepare_data.py --out runs/priority-default-data
+    python examples/train.py --data runs/priority-default-data --out runs/priority-default --steps 100
+    python examples/train.py --data runs/priority-default-data --out runs/priority-weights --steps 20 --lr 0.0001 --warmup 5 --init-weights runs/priority-default/latest.pt
 
-## 文档、公式、默认值和产物检查
+默认437,888参数、25,600 token；20/40/60/80/100步loss/PPL/lr/范数与上轮逐点完全相同，最终val_loss=3.44255793094635；计时重新观测，JSON身份更新。仅权重阶段从step/token=0开始，20步/5,120 token，val_loss=3.360415041446686。同语料，只说明初始化和状态重置，不是领域收益实验。原曲线数值未变，未声称本轮重新截图。
 
-| 实际执行的检查 | 结果 |
+## 文档与产物检查
+
+| 本轮实际执行 | 结果 |
 | --- | --- |
-| `npm run check:docs` | 通过：主体仍为 29 教学节、87 问答；40 份页面源文件（含新增阶段导读与 404） |
-| `npm run build` | 通过：40 个 HTML、Pagefind 搜索索引和 sitemap |
-| `npm run check:built` | 通过：本地页面、锚点、CSS/JS/图片资源无缺失；86 个 KaTeX 实例无 parse error；29 组各有 3 个折叠答案 |
-| `python -m compileall -q examples` | 通过 |
-| 附录中的 CLI 默认值对照 parse_args | 21 个已列字段一致 |
-| 数学 / 单位核对 | 真实 Hi!/OK 字节 ID、100/900 加权均值 3.8、假设 token loss 1.386294、437,888 参数、token 与 PPL 记录均一致 |
-| 参考 JSON 对当前训练源码 | code_sha256 一致；逐点 token 与 exp(val_loss) 一致 |
-| 预算输入默认约束 | 默认值均满足 min/max/step；将与 min=0.001 不对齐的定步长改为 step=any，GPU 数仍要求整数 |
-| 关键引用 | 已阅读并核对 [SOURCE_AUDIT.md](SOURCE_AUDIT.md) 所列支持位置；不以 HTTP 状态代替论断核验 |
+| npm run check:docs | PASS：40源页面、29节、87问答 |
+| npm run build | PASS：40 HTML、搜索索引、sitemap |
+| npm run check:built | PASS：87个KaTeX实例无解析错误，内部目标/锚点缺失0，29组答案结构完整 |
+| python -m compileall -q examples | PASS |
+| git diff --check | PASS |
+| 结果核对脚本 | 训练/执行脚本身份、六次配比计数/有限loss/固定64索引、PPL、逐点默认回归、160个范围dur汇总通过 |
+| 接口与图示 | 22个列出的CLI字段对应配置，TP张量、PP依赖及气泡分母、两池计数已核对 |
+| 来源核对 | 新TP/PP/no_sync/profiler论断已阅读主来源，支持范围写入SOURCE_AUDIT；不以HTTP可达替代论断核验 |
+| UI库存 | 只有空MCP Apps，无可操作网页标签，未做桌面/移动截图、折叠点击、搜索与预算交互验收 |
 
-构建仍有依赖级 `use astro:head-inject` 等警告，但没有构建失败或生成公式错误。静态检查能发现缺失链接、资源和结构，不能替代真实浏览器的布局与交互检查。
+构建仍有依赖层use astro:head-inject警告及已有404路由提示，没有构建失败。静态检查不替代浏览器显示验收。
 
-## 明确未执行的事项
+## 失败尝试与边界
 
-- 浏览器工具库存仅有空的 MCP Apps 表面，没有可操作的普通浏览器标签。因此未执行网站桌面 / 移动视口截图、折叠答案点击、主题 / 搜索或预算输入交互验收；只做了生成 HTML、样式引用和默认输入约束检查。
-- 没有运行领域配比 A/B、模板 / 主题留出对照、生产规模预算校准。正文全部按实验设计或假设标明，不填写结果。
-- 没有运行低精度、状态分片、TP/PP/CP、长上下文扩展，也没有复现 OLMo 2 / SmolLM3 的模型或分数。
-- GitHub Actions 发布后是否成功，以该次工作流和线上检查为准。
+- 首轮验证捕获Windows原生诊断时UTF-8解码失败。已为Python子进程指定UTF-8，对原生无法解码字节采用替换，仍检查退出码和ASCII错误身份；随后12项及完整DDP/拒绝检查重新运行通过，首轮失败未计为通过。
+- 性能脚本初版漏执行非profiler分支循环，空均值报错。修复后重新跑全部六次基准与两次profiler，表内只使用完成后的结果。
+- 未执行CUDA/NCCL、多机、AMP、状态分片、真实TP/PP/CP、长上下文、写盘故障/SDC、长期稳定性、生产吞吐/GPU MFU、模板/主题留出或真实领域能力测评。
+
+实验设计方法与工具归属已写入[结果说明](examples/results/README.md)。发布状态以本轮GitHub Actions记录为准。
