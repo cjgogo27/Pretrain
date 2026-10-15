@@ -7,6 +7,7 @@
 - Windows，Python 3.12.5，PyTorch 2.11.0+cpu。
 - Node.js 24.14.0，npm 11.9.0。
 - Astro 7.3.1，Starlight 0.42.0；站点完整依赖由 package-lock.json 固定。
+- 构建器 Rolldown 固定为 1.2.13：1.2.14 的一项 macOS 可选绑定未完整发布，造成新版本 npm 安装失败；锁文件已检查所有依赖条目包含版本，并统一使用 npm 官方包地址。
 - CPU 教学训练使用 1 个 PyTorch 线程、FP32、固定种子。
 
 ## 文档与静态站点
