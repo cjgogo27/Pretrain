@@ -8,6 +8,8 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 从原始语料出发，理解数据、模型、优化、分布式、评估与交付怎样连接；用离线小模型跑通一次训练与恢复。全部 29 个教学小节配有角色问题、折叠参考答案和一手资料。
 
+预训练以**数据、学习方法与训练Infra**共同组成主线。新增[跨章地图](/Pretrain/00-reading-guides/05-data-and-infrastructure/)解释清洗/配比如何连接供给、并行、调度与恢复；保留六章29节，4.5补DP/TP/PP/CP/EP五维布局，4.6补弹性调度。
+
 ## 系统架构
 
 <SystemMap />
@@ -31,8 +33,8 @@ import SystemMap from '../../../components/SystemMap.astro';
 - [4.2 每次改多少：AdamW、学习率与预热](/Pretrain/04-training-distributed/02-optimizer-and-learning-rate/)
 - [4.3 算得快也要算得稳：混合精度、裁剪与数值检查](/Pretrain/04-training-distributed/03-precision-and-stability/)
 - [4.4 多张卡怎样一起学：数据并行、DDP 与 ZeRO](/Pretrain/04-training-distributed/04-data-parallel-and-sharding/)
-- [4.5 一个模型怎样拆开：张量、流水线与上下文并行](/Pretrain/04-training-distributed/05-tensor-pipeline-context-parallel/)
-- [4.6 断了怎样接着跑：检查点、随机状态与故障恢复](/Pretrain/04-training-distributed/06-checkpoint-and-recovery/)
+- [4.5 一个模型怎样拆开：从TP/PP/CP到五维并行](/Pretrain/04-training-distributed/05-tensor-pipeline-context-parallel/)
+- [4.6 断了怎样接着跑：检查点、弹性调度与恢复](/Pretrain/04-training-distributed/06-checkpoint-and-recovery/)
 - [5.1 模型有没有学到新东西：验证损失与困惑度](/Pretrain/05-evaluation-diagnosis/01-validation-loss-perplexity/)
 - [5.2 分数测的是什么：能力评测、提示与报告](/Pretrain/05-evaluation-diagnosis/02-capability-evaluation/)
 - [5.3 怎样让比较可信：污染、基线与选择偏差](/Pretrain/05-evaluation-diagnosis/03-contamination-and-comparison/)

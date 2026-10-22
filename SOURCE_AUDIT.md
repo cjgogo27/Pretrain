@@ -28,3 +28,16 @@
 - DDP：[PyTorch 2.11 no_sync](https://docs.pytorch.org/docs/2.11/generated/torch.nn.parallel.DistributedDataParallel.html#torch.nn.parallel.DistributedDataParallel.no_sync) 要求前向也在上下文内；五步对照实测标准均值归约、等长窗口、A=2、同步后完整副本裁剪。没有自定义 hook / join / AMP 或分片实验。
 - 性能：[Profiler recipe](https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html) 支持 CPU activity、record_function 和 trace 导出。4ms 等待是本项目显式注入，阶段持续时间及独立基准来自实际运行，未引用它作为默认 loader 或 GPU 性能。
 - 所有项目数字以 `examples/results/*-reference.json` 为证据；十文档清洗与配比是独立实验，未将清洗保留率推成训练收益。
+
+## 2026-10-22：数据与Infra补充核验
+
+| 新增位置/论断 | 实际阅读的一手支持位置 | 教学边界 |
+| --- | --- | --- |
+| 4.5五维含义与层特定映射 | Dennis Liu等，2025，[MoE Parallel Folding，arXiv:2504.14960v1](https://arxiv.org/html/2504.14960v1#S3)，§3.1–3.3、附录6.2–6.3 | DP/TP/PP/CP/EP为本文明确采用的一组含义；32rank配置/顺序是本站独立数学例子，没有复制其GPU性能 |
+| DP计算与EP/ETP | [Megatron Bridge Parallelisms Guide](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/main/docs/parallelisms.md#data-parallel-size-calculation)，Data Parallel Size Calculation、Expert/Expert Tensor Parallelism | 2026-10-22核对在线main；不把可变文档的推荐表或性能百分比当通则；实际组与版本须另核对 |
+| 4.6固定规模重试与成员伸缩 | [PyTorch 2.11 torchrun](https://docs.pytorch.org/docs/2.11/elastic/run.html#membership-changes)，Fault tolerant、Elastic、Failure Modes、Membership Changes、Important Notices 4–7 | 节点范围不是GPU数；worker重建不自动保存数据/优化器；rank不稳定。本站案例是mp.spawn协调的CPU边界迁移，没有运行torchrun弹性集群 |
+| 资源调度/准入 | [Kueue Workload](https://kueue.sigs.k8s.io/docs/concepts/workload/)，Resource requests、All-or-nothing semantics | Workload资源请求/准入与训练恢复分层；未部署Kueue/Kubernetes/Slurm，不给调度效果数字 |
+| 分布式快照与重分片 | [PyTorch 2.11 DCP](https://docs.pytorch.org/docs/2.11/distributed.checkpoint.html)，开头load-time resharding、state_dict接口 | 有该接口不代表支持任意TP/PP/EP转换、数据游标恢复或逐位一致；本站未运行分片重载 |
+| 数据与Infra三条主线 | 原有Dolma/OLMo来源与本站数据/训练接口；原始清洗配比报告 | 职责关系为本站组织，不给工业工作量百分比；保留旧清洗/配比结果，未声称本轮重训得到新数据收益 |
+
+32设备布局、16token/32分配/22超容量和48GPU小时均是带前提的独立算例。CPU迁移的384位置、故障退出与误差来自elastic-reference.json，逻辑布局来自topology-reference.json；二者不能合称生产5D弹性验证。

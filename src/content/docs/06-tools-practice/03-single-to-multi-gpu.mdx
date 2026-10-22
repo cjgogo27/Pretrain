@@ -46,13 +46,13 @@ torchrun --standalone --nproc_per_node=2 examples/train.py --device cuda --data 
 
 教学脚本在每次保存时收集每个 rank 的随机状态。恢复要求相同 world size；改卡数继续训练属于重新规划数据与批量的迁移场景，不在严格恢复范围内。
 
-## 固定样本数值对照：本轮已运行的 CPU 两进程测试
+## 固定样本数值对照：既有CPU两进程记录
 
 ```bash
 python examples/verify_ddp.py
 ```
 
-不需要下载数据。脚本固定模型初始化和 100 个长度 10 的输入窗口：rank 0 分到 10 个窗口（100 有效 token），rank 1 分到 90 个（900 token）。单进程在全部 1,000 token 上求平均；DDP 每 rank 用 `2×local_loss_sum/1000` 反向，与 [4.1](/Pretrain/04-training-distributed/01-loss-and-gradients/)相同的归约假设对应。之后各自执行一次相同 AdamW 更新，未加入裁剪或 AMP，以隔离归约问题。
+以下是2026-10-15发布的既有记录，本轮未重跑这项单步对照。不需要下载数据。脚本固定模型初始化和 100 个长度 10 的输入窗口：rank 0 分到 10 个窗口（100 有效 token），rank 1 分到 90 个（900 token）。单进程在全部 1,000 token 上求平均；DDP 每 rank 用 `2×local_loss_sum/1000` 反向，与 [4.1](/Pretrain/04-training-distributed/01-loss-and-gradients/)相同的归约假设对应。之后各自执行一次相同 AdamW 更新，未加入裁剪或 AMP，以隔离归约问题。
 
 | 实测比较（Windows / PyTorch 2.11 CPU） | 最大绝对差 |
 | --- | --- |
@@ -74,7 +74,7 @@ python examples/verify_ddp.py
 python examples/verify_ddp_training.py --out runs/ddp-training
 ```
 
-程序生成 `report.json` 和 continuous / paused / resumed 三份日志，包含两层检查。都已在 Windows / Python 3.12.5 / PyTorch 2.11.0+cpu 上实际运行，FP32、每进程 1 线程、两进程 Gloo；使用 `TCPStore(use_libuv=False)`。
+以下同为2026-10-15记录，本轮保留原始结果；新故障/成员迁移在后面独立列出。程序生成 `report.json` 和 continuous / paused / resumed 三份日志，包含两层检查。都已在 Windows / Python 3.12.5 / PyTorch 2.11.0+cpu 上实际运行，FP32、每进程 1 线程、两进程 Gloo；使用 `TCPStore(use_libuv=False)`。
 
 **第一层：同样本，比较五次更新。** 模型 width=16、1 层、S=8；每更新固定 8 个全局窗口，共 64 个目标位置。单进程一次读取全部；DDP 按窗口索引 `rank::2` 划分，每 rank B=2、A=2。第一个微批次的前向与反向都在 `no_sync` 内，每个局部平均 loss 除以 2，第二个微批次归约后才裁剪、AdamW 更新。完整梯度副本的裁剪阈值 0.2，每步实测均触发裁剪。
 
@@ -100,6 +100,44 @@ python examples/launch_cpu.py --data runs/ddp-data --out runs/ddp-demo --steps 8
 `launch_cpu.py` 只负责两进程本机 rendezvous，随后调用原训练函数，不另写训练逻辑。端口 / Gloo 不可用会失败，不能当作通过；目录冲突时另选 `--out`。本机有地址连接重试警告，最终完成。原生诊断与 Python 编码可能混用，验证捕获使用 UTF-8 并替换无法解码字节，仍核对 ASCII 错误身份。
 
 成功条件是两层断言全通过，不是只见 loss 下降。第二层验证的是**同布局、更新边界的正常保存和进程重启**，不是写盘中途断电或 rank 崩溃。没有验证 AMP、分片、CUDA/NCCL、多机、弹性改卡数或扩展性能；8 步也不是长时间稳定性验收。
+
+## 成员变化与故障重启：独立CPU教学实验
+
+```bash
+python examples/topology_case.py --out runs/topology
+python examples/elastic_case.py --out runs/elastic-case
+```
+
+第一条枚举逻辑布局，不创建32个进程。第二条确实启动本机Gloo进程，使用`TinyLM`的width16、1层、4头、S8、FP64、每进程1线程、无dropout。它是**独立的边界迁移测试程序**，不调用默认`train.run`，也不提供torchrun/Kubernetes作业准入。
+
+每更新固定8个全局窗口、64个有效位置；每rank微批量2。DP2时A2，DP1时A4，因此六次更新始终384个已提交位置，逻辑窗口ID0…47。先运行固定DP2六步基线，再执行DP2两步、DP1两步、DP2两步；完整模型和Adam状态在边界继承，固定全局数据而非按rank重新随机采样。
+
+这些窗口由固定种子生成随机ID，专门检验分配、状态和提交，不用于语言建模质量结论。固定ID账本也不代表原始语料中的内容绝不重复。
+
+**故障注入**发生在已提交第2步之后：两rank各完成第3步的首个`no_sync`微批次并落下输入ID，rank1以退出码86终止。父进程只接受指定退出码和故障标记，确认最新检查点仍为第2步且文件哈希不变，再从它以DP1重建。第3步重新处理该全局batch，失败计算不计入已提交token。
+
+实际结果与误差在本节“成员迁移实测”中列出。成功条件：明确捕获注入故障，旧快照保持可加载；最终窗口账本相同、384位置；全参数与Adam状态在`atol=1e-9, rtol=1e-8`内对应。产物是`report.json`、两条路径的`latest.pt`、失败尝试与故障标记，快照只加载可信文件。目录已存在内容时换新的out；端口/Gloo失败、普通超时或其他退出码不能算通过。
+
+没有用这个无dropout、固定窗口、完整副本的夹具证明流式数据、随机层或分片优化器迁移；更没有运行32GPU五维MoE、NCCL、多机、TP/PP/CP/EP变更或写盘中断。原严格恢复仍要求相同world size。
+
+
+## 成员迁移实测
+
+2026-10-22，Windows11 / Python3.12.5 / PyTorch2.11.0+cpu，FP64、每进程1线程、Gloo与TCPStore(use_libuv=False)实际通过。
+
+| 核对项 | 实际观察 |
+| --- | --- |
+| 每步DP | 2、2、1、1、2、2 |
+| 每步累积A | 2、2、4、4、2、2 |
+| 保留进度 | 6更新、48窗口ID、384有效目标位置 |
+| 注入故障 | rank1退出86，快照仍为第2步，SHA未变 |
+| 可确认的丢弃计算 | 两rank已记录首微批次共32目标位置；后续可能还有部分计算，故只是下界 |
+| 基线/迁移最终参数最大绝对差 | 9.490718672634083e-16 |
+| Adam状态最大绝对差 | 1.0408340855860843e-17 |
+
+以上误差通过atol1e-9/rtol1e-8；不是逐位相同承诺。账本0…47在保留更新里对应，失败尝试中ID16、18、17、19之后被重放，因而384不能冒充全部实际计算量。完整记录见[elastic-reference.json](https://github.com/cjgogo27/Pretrain/blob/main/examples/results/elastic-reference.json)。有Windows地址重试和故障后的进程终止诊断，最后完成；普通超时没有被记成通过。
+
+程序不依赖每rank随机采样，dropout为0，故这份专用迁移协议没有复制原训练器的rank RNG恢复功能；生产随机层/采样器仍需另行设计，不能据此删去原严格恢复的随机状态检查。运行墙钟只作本机记录，不是弹性调度加速或GPU成本结论。
 
 ## 然后再测扩展效率
 

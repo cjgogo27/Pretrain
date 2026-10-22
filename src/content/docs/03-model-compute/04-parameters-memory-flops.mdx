@@ -51,6 +51,13 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 先写状态预算，再在目标配置上跑短测试，记录峰值 allocated / reserved 显存、批次、长度和内核。激活重计算用额外计算换保存空间，状态分片则减少单卡常驻状态；它们解决的部分不同。不要把“理论能放下”当作“有足够运行余量”。
 
+<details>
+<summary>换成MoE后，能否把总参数或激活参数直接塞进6ND？</summary>
+
+总专家权重和优化器状态仍要存放；每token只激活部分专家，计算与路由分配量又不同。不能把激活参数数当作全部参数存储，也不能不加条件地用全部专家总参数估计每token计算。应分别算attention、选中专家FFN、router、dispatch/combine、重计算和通信；4.5给出16个原始token、32次专家分配的反例。这里没有MoE实测或修改默认稠密模型。
+
+</details>
+
 <SectionQA id="3.4" mode="answer" />
 
 ## 参考资料

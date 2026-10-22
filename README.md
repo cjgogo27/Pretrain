@@ -8,14 +8,14 @@
 
 ## 目标与内容
 
-让数据、模型、训练、平台和评测说同一套语言，并用一个离线 CPU 小模型贯通训练、验证、检查点和恢复。
+预训练核心由数据工程、学习方法与训练Infra共同组成：数据决定学习材料，模型与优化决定怎样学习，基础设施保证供给、执行、通信、资源与状态按计划衔接。用离线CPU小模型贯通训练、验证、检查点与恢复；从[三条主线地图](https://cjgogo27.github.io/Pretrain/00-reading-guides/05-data-and-infrastructure/)进入。
 
 | 章节 | 内容 |
 | --- | --- |
 | 1 系统总览 | 预训练边界、模型部件、从文本到权重的系统架构 |
 | 2 数据与分词 | 来源配比、清洗去重、污染、分词、打包、版本验收 |
 | 3 模型与计算 | 张量概率、Transformer、位置与上下文、显存计算、预算 |
-| 4 优化与分布式 | 梯度累积、AdamW、精度、DDP、状态分片、模型并行、恢复 |
+| 4 优化与分布式 | 梯度累积、AdamW、精度、DDP、状态分片、五维并行、弹性调度与恢复 |
 | 5 评估与诊断 | 验证损失、PPL、任务评测、可信比较、吞吐、异常消融 |
 | 6 工具与实战 | 工程环境、最小实验、扩卡、持续预训练、交付复现 |
 | 导读与附录 | 工程师 / 学生 / 产品路线、术语、配置、预算计算器、参考资料 |
@@ -45,7 +45,7 @@ flowchart TD
   G -.-> K
   C -.验证流.-> J
   J -.受控实验反馈.-> P[下一版训练方案]
-  H[计算、存储、通信、日志与版本] -.共用支撑.-> LOOP
+  H[资源拓扑、数据供给、通信存储、调度恢复与版本] -.共用支撑.-> LOOP
 ```
 
 ## 本地阅读网站
@@ -110,3 +110,21 @@ python examples/profile_case.py --out runs/profile
 - 问答组件适配自 CionHuang 的 MIT 代码，保留原作者版权说明。
 - 原教程机器人图片、模型与其他资产未用于本项目。
 - 技术来源见各节末尾及[参考资料索引](src/content/docs/07-appendix/d-references.mdx)。
+
+## 数据与Infra修订（2026-10-22）
+
+保留六章29节87问答；补强数据供给/提交游标、资源准入/作业调度、五维并行、MoE路由与负载、状态迁移及端到端成本口径。部署与后训练不扩展。
+
+- 4.5以DP/TP/PP/CP/EP解释5D；32逻辑设备两种层映射、EDP/ETP、131,072原始目标位置可点选核对。EP不是额外乘8倍设备。
+- 4.6区分调度器给资源、启动器重建成员、训练运行时恢复状态；解释批量重规划、加载时重分片与随机/数据游标约束。
+- 6.3新增独立CPU案例：真实worker退出86，从未变的第2步快照重建，DP2→1→2，384已提交目标位置与基线对照通过。它不是默认train.py的弹性开关，也不是生产集群测试。
+
+```bash
+python examples/topology_case.py --out runs/topology
+python examples/elastic_case.py --out runs/elastic-case
+npm test
+```
+
+topology_case仅用Python标准库做逻辑枚举；elastic_case用已有PyTorch、CPU Gloo完整FP64副本、固定随机ID窗口、无dropout，不下载语料/模型。默认严格恢复仍拒绝world size变化。产物与实际限制见[结果索引](examples/results/README.md)和[VALIDATION.md](VALIDATION.md)。
+
+可选浏览器检查入口scripts/check-infra-browser.cjs，先准备Playwright/浏览器并启动本地preview；可通过PLAYWRIGHT_MODULE、BROWSER_EXECUTABLE与BROWSER_CHECK_BASE指定现有运行时和站点。这不是训练依赖。

@@ -1,0 +1,14 @@
+<figure class="data-infra-map" aria-label="数据、学习与Infra共同交付一次可信的预训练">
+  <figcaption><strong>同一目标，三类交接物</strong></figcaption>
+  <div class="tracks">
+    <section><h3>数据 · 学什么</h3><p>来源 → 清洗/去重 → 划分/分词 → 配比与窗口</p><p><strong>交出：</strong>数据版本、质量记录、有效token与游标</p><a href="/Pretrain/02-data-tokenization/01-sources-and-mixture/">沿第2章核对材料</a></section>
+    <section><h3>学习 · 怎样改变</h3><p>因果前向 → 目标损失 → 梯度 → 参数与Adam状态</p><p><strong>交出：</strong>已完成更新、学习率与固定评测</p><a href="/Pretrain/04-training-distributed/01-loss-and-gradients/">沿第3–4章核对更新</a></section>
+    <section><h3>Infra · 怎样持续运行</h3><p>资源/拓扑 → 供给/通信 → 监测 → 保存与重建</p><p><strong>交出：</strong>进程组、时间线、完整可恢复进度</p><a href="/Pretrain/04-training-distributed/06-checkpoint-and-recovery/">沿第4–6章核对执行</a></section>
+  </div>
+  <p class="joint">数据清单 + 优化计划 + 系统状态 → 同一次运行的证据 → 下一轮受控实验</p>
+  <p class="note">三条线相互约束，不是三个串行阶段，也不是硬件/框架的一一对应层。</p>
+</figure>
+<style>
+  .data-infra-map {border:1px solid var(--sl-color-gray-4);border-radius:.65rem;padding:1rem;margin-block:1.4rem;}figcaption {margin-bottom:.7rem;}.tracks {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;}section {border:1px solid var(--sl-color-gray-4);border-top:4px solid var(--sl-color-accent);border-radius:.4rem;padding:.8rem;background:var(--sl-color-bg-nav);}h3 {font-size:1rem;margin:0;}p,a {font-size:.9rem;}p {margin-block:.6rem;}.joint {border:1px dashed var(--sl-color-gray-4);padding:.7rem;}.note {font-size:.85rem;color:var(--sl-color-gray-2);}@media(max-width:45rem){.tracks {grid-template-columns:1fr;}}
+  .tracks > section {margin:0;}
+</style>

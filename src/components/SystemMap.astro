@@ -19,7 +19,7 @@
     <p>权重 + 优化器 + 计划 + 计数 + 代码 / 数据身份 + 各 rank 随机状态 → 可恢复快照</p>
     <p class="handoff">教学代码同步评估；生产中可异步测量冻结版本。评估反馈 → 受控实验 → 下一版方案，不进入本步反向。</p>
   </section>
-  <div class="infra"><span>计算与存储<br/>CPU / GPU、token 分片、检查点文件</span><span>通信<br/>进程组、梯度归约、状态汇集</span><span>日志<br/>样本身份、有效 token、loss、梯度、更新步</span><span>配置与版本<br/>代码、数据、编码、环境、计划、随机状态</span></div>
+  <div class="infra"><span>资源与调度<br/>配额、拓扑、整组启动、成员重建</span><span>数据供给与存储<br/>token分片、缓存、预取、提交游标</span><span>执行与通信<br/>并行组、梯度归约、路由与状态迁移</span><span>观测与版本<br/>样本、有效token、代码/数据/计划、完整快照</span></div>
   <p><small>一个框架可服务多个模块，一个模块也可跨设备；共用支撑不构成固定的业务功能层。</small></p>
 </figure>
 <style>

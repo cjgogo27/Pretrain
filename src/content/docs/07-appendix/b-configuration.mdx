@@ -54,3 +54,9 @@ title: "附录 B 配置字段与接口约定"
 `--eval-batches` 仅保留作旧命令兼容入口：显式传入时令全局窗口数等于该值×batch-size，不再为每 rank 生成不同窗口；新命令使用 `--eval-windows`。
 
 本示例不支持更换 world size 的严格恢复，不支持修改数据后沿用 `--resume`。`--init-weights` 核对 width/layers/heads/seq-len 与编码，只加载模型、不恢复优化器和 RNG；它不做上下文、词表或生产分片格式转换。新运行输出目录必须没有旧 metrics.jsonl / latest.pt。
+
+## 新增独立案例，不修改默认训练参数
+
+- `topology_case.py --out runs/topology`：仅标准库，固定32逻辑rank，Attention PP2/DP4/CP2/TP2、专家PP2/EDP2/EP8/ETP1；输出全部分组，非法整除拒绝。32不是实际进程数。
+- `elastic_case.py --out runs/elastic-case`：CPU Gloo、FP64、线程1、width16/layers1/heads4/S8、全局窗口8、micro batch2、固定lr0.001/AdamW decay0.1/clip1。world2时accum2，world1时accum4；固定6步与逻辑数据。out必须为空目录，内部可信latest.pt不是train.py格式2的严格恢复入口。
+- 两者都没有新依赖/生产框架开关。默认train.py的22个CLI字段、数据身份和拒绝world size变化的规则保持原样；GPU/分片/框架迁移必须另验。

@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview --host 127.0.0.1",
     "check:docs": "node scripts/check-docs.mjs",
-    "check:built": "node scripts/check-built.mjs"
+    "check:built": "node scripts/check-built.mjs",
+    "test": "node --test scripts/topology.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.13"

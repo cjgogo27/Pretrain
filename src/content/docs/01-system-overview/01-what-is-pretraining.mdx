@@ -5,6 +5,7 @@ description: "你给一个刚下载的基础模型输入“请解释梯度”，
 
 import SectionQA from '../../../components/SectionQA.astro';
 import SystemMap from '../../../components/SystemMap.astro';
+import DataInfraMap from '../../../components/DataInfraMap.astro';
 
 ## 现场问题
 
@@ -23,6 +24,20 @@ import SystemMap from '../../../components/SystemMap.astro';
 语言中包含事实、表达方式、代码结构与推理步骤。要在多样上下文里预测得更好，模型需要学习其中一些规律。但训练目标只要求预测分布，不能直接保证每次生成都真实、可靠或符合用户意图。
 
 > **一句话听懂**：预训练通过预测数据中的后续内容，塑造模型的基础能力；它不直接等于“训练出一个听话的聊天助手”。
+
+## 核心不只是一条loss公式
+
+能写出下一token目标，还不能保证模型读到了合适的数据，也不能保证训练在集群上按计划完成。
+
+| 主线 | 要做的决定 | 可核对产物 |
+| --- | --- | --- |
+| 数据工程 | 来源、清洗去重、污染、分词、配比与采样 | 数据清单、质量反例、实际消费token |
+| 学习与模型 | 架构、目标、优化、精度与评测 | 形状、梯度、更新计划与固定测量 |
+| 训练Infra | 数据供给、并行、通信、资源调度与容错 | 进程组、时间线、状态快照与恢复证据 |
+
+这三条线共同构成一次预训练。比如来源比例正确但两个rank重复拿同一批材料，实际覆盖就可能与计划不同；模型代码正确但损坏分片被跳过，学习分布也已改变。先读[数据—学习—Infra地图](/Pretrain/00-reading-guides/05-data-and-infrastructure/)，再在1.3追踪一次更新。
+
+<DataInfraMap />
 
 ## 三种训练，改变的是什么
 

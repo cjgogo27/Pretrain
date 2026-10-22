@@ -69,11 +69,11 @@
   },
   {
     "path": "04-training-distributed/05-tensor-pipeline-context-parallel",
-    "title": "4.5 一个模型怎样拆开：张量、流水线与上下文并行"
+    "title": "4.5 一个模型怎样拆开：从TP/PP/CP到五维并行"
   },
   {
     "path": "04-training-distributed/06-checkpoint-and-recovery",
-    "title": "4.6 断了怎样接着跑：检查点、随机状态与故障恢复"
+    "title": "4.6 断了怎样接着跑：检查点、弹性调度与恢复"
   },
   {
     "path": "05-evaluation-diagnosis/01-validation-loss-perplexity",

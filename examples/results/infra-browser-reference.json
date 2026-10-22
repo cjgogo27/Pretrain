@@ -1,0 +1,63 @@
+{
+  "status": "PASS",
+  "browser": "155.0.4283.62",
+  "viewports": [
+    1280,
+    390
+  ],
+  "checks": [
+    {
+      "viewport": 1280,
+      "name": "data_learning_infra_map_and_page_width",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "five_d_membership_coordinate_and_keyboard",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "advanced_details_and_role_answer",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "theme_and_responsive_topology",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "elastic_evidence_and_cost_examples_rendered",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "data_learning_infra_map_and_page_width",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "five_d_membership_coordinate_and_keyboard",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "advanced_details_and_role_answer",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "theme_and_responsive_topology",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "elastic_evidence_and_cost_examples_rendered",
+      "status": "PASS"
+    }
+  ],
+  "count": 10,
+  "page_errors": [],
+  "scope": "Local built site: data/infra map, topology groups, details, role answers, themes, changed pages and overflow. No GPU/browser performance or all-page/search audit."
+}

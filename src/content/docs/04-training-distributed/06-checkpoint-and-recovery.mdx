@@ -1,5 +1,5 @@
 ---
-title: "4.6 断了怎样接着跑：检查点、随机状态与故障恢复"
+title: "4.6 断了怎样接着跑：检查点、弹性调度与恢复"
 description: "训练在第 8,000 步中断。你加载最后的权重继续跑，loss 却出现明显跳变；另一份文件下载完整，加载时才发现写入被打断。"
 ---
 
@@ -44,13 +44,49 @@ import SystemMap from '../../../components/SystemMap.astro';
 
 ## “记录过代码”与“约束了代码”不是一回事
 
-旧版本保存 `code_revision` 和 `code_sha256`，却没有在恢复时比较；本轮先复现了“把学习率乘以 1.01 仍被接受”的问题。现在格式版本 2 的严格恢复要求当前 `train.py` 的规范化源码 SHA-256 与快照相同，缺字段或不一致都拒绝。
+旧版本保存 `code_revision` 和 `code_sha256`，却没有在恢复时比较；此前修订复现了“把学习率乘以 1.01 仍被接受”的问题。现在格式版本 2 的严格恢复要求当前 `train.py` 的规范化源码 SHA-256 与快照相同，缺字段或不一致都拒绝。
 
 哈希只规范 UTF-8 BOM 与换行，不忽略代码、注释或空白修改；所有本地训练逻辑目前集中在该文件。它不是数字签名，也不能抵抗人为篡改快照。`code_revision` 保留作来源记录，不强制整个 Git HEAD 相等，因纯文档提交不应让未改变的训练代码失效。PyTorch、数据、计划和 world size 的检查继续保留。
 
 旧格式快照不能被悄悄当成格式 2 严格恢复。若只需要旧权重，应使用 [6.4 的新运行入口](/Pretrain/06-tools-practice/04-continued-pretraining/)，重新建立优化器和计数，并明确它不等于继续原轨迹。
 
 分池采样时，配比也是训练计划的一部分；检查点保存全局领域消费计数，两个池文件都进入数据指纹。更改概率或池内容均拒绝严格恢复。两 rank 的更新边界暂停 / 重启已在 [6.3](/Pretrain/06-tools-practice/03-single-to-multi-gpu/)实际验证；它不模拟写盘中断或设备故障。
+
+## 弹性调度：先分清谁给资源、谁恢复状态
+
+32张GPU的作业被抢占一半，是等原资源回来、缩成16张，还是从完整快照重新启动？**弹性资源调度**处理可用资源和任务准入；**弹性训练**还需让成员变化后的计算、状态和数据继续满足约定。能重新拉起进程，只解决了其中一部分。
+
+| 层次 | 负责什么 | 没有自动保证什么 |
+| --- | --- | --- |
+| 集群调度/队列 | 配额、优先级、资源分配、拓扑与抢占 | 模型/优化器和游标能正确迁移 |
+| 作业协调/启动器 | rendezvous、成员发现、失败检测、重启worker组 | 固定全局batch、数据不重不漏 |
+| 训练运行时 | 重建进程组、恢复参数/状态、重排数据与计数 | 不同布局逐位一致或任务质量不变 |
+
+Kubernetes生态的Kueue可管理Workload准入与配额；它不是优化器状态加载器。[4] Slurm等资源管理系统同样不能靠给任务更多GPU就自动改变训练实现。整组资源未齐备时，应明确是否采用协同准入/启动策略，避免部分worker占着资源等其他成员；具体能力依集群配置，不将一个框架名字当作已经解决。
+
+PyTorch 2.11 `torchrun`资料说明：节点加入/离开会停止现有worker，形成新组并重新分配RANK/WORLD_SIZE；rank不稳定。`--nnodes=1:4`中的范围是**节点数**，不是每次想要的GPU数；固定节点数加`max-restarts`则属于故障重试，可以没有成员伸缩。[3，Membership Changes、Important Notices]
+
+## 从32张缩到16张，哪些契约要重新算
+
+假设固定TP2、PP2、CP2，Attention数据副本DP从4变2；B=2、S=4096，原A=4。原更新131,072有效位置，缩容若A不改就只有65,536；若希望保持原全局batch，可在这个整除算例中改A=8。反向扩到64张时DP8、A2对应同一batch。设备数改变不代表一定需要按比例改lr，先看是否改变了优化目标、全局batch和调度计数。
+
+| 状态/接口 | 迁移前的决定 |
+| --- | --- |
+| 参数与Adam矩 | 完整副本可重载；分片状态需与目标布局匹配的重分片/转换 |
+| 数据 | 从已提交全局窗口/来源/游标重建，不能沿用rank身份当永久数据所有者 |
+| 批量与归约 | 重新计算DP、A、有效分母和归约语义，丢弃未完成更新的局部梯度 |
+| 随机与层行为 | dropout、shuffle与多worker数据加载如何重放；布局变更可能无法逐位对齐 |
+| 学习率与计数 | 按预定step或token轴继续；失败尝试不冒充已保留更新 |
+| 验证与保存 | 固定验证窗口，完整清单提交后才发布可恢复版本 |
+
+PyTorch Distributed Checkpoint提供加载时重分片能力，但应用仍需正确的模型/优化器state_dict和目标存储；它不替你恢复数据游标或保证任意TP/PP/EP变化可直接转换。[5] 异步保存也要区分“保存请求已返回”和“全部必要分片已完成并提交”；快照中的状态必须对应同一更新边界。
+
+> 先掌握“资源可变，训练契约要重建”即可。真实生产迁移还要验证分片格式、内核、拓扑与数据加载器；不要用放宽`world_size`检查代替迁移设计。
+
+## 严格恢复与弹性迁移是两个验收目标
+
+原`train.py --resume`仍拒绝world size变化，原12项与两进程同布局检查不因此改名。新增[6.3独立CPU案例](/Pretrain/06-tools-practice/03-single-to-multi-gpu/#成员变化与故障重启独立cpu教学实验)用完整复制FP64状态、无dropout、固定全局窗口，演练worker退出和DP2→1→2重建；它允许的是明确约束下的边界迁移，不是默认脚本获得任意弹性能力。
+
 
 ## 从故障中恢复也要留痕
 
@@ -65,3 +101,9 @@ import SystemMap from '../../../components/SystemMap.astro';
 [1] [PyTorch Saving and Loading Models](https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html)。训练检查点与模型权重的差别。
 
 [2] [PyTorch Reproducibility](https://docs.pytorch.org/docs/stable/notes/randomness.html)。随机性、确定性与跨环境限制。
+
+[3] [torchrun 2.11：Failure Modes、Membership Changes、Important Notices](https://docs.pytorch.org/docs/2.11/elastic/run.html#membership-changes)。
+
+[4] [Kueue Workload](https://kueue.sigs.k8s.io/docs/concepts/workload/)。资源准入职责；本站未部署Kubernetes/Kueue。
+
+[5] [PyTorch 2.11 Distributed Checkpoint](https://docs.pytorch.org/docs/2.11/distributed.checkpoint.html)。加载时重分片与state dict接口，不代表本站已运行分片迁移。

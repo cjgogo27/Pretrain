@@ -17,3 +17,14 @@
 配比实验的重复单位是训练种子，不是验证窗口或 token；64 窗口允许重叠，仅降低此固定分布上测量的抽样噪声，不产生 64 次独立训练证据。三种子只作教学对照，不声称统计功效或普遍最优配方。清洗夹具没有用于这些训练池，不能推导清洗的模型收益。
 
 实验设计使用 experimental-design 技能的配对、控制变量、预先保存设计与避免伪重复流程，未增加其 DOE 软件依赖。工具方法归属：[Kassis, T., Agarwal, V., He, Y., Patel, D., & Brueckner, A. M. (2026), *Scientific Agent Skills: A Library of Procedural Knowledge for Research Agents*](https://arxiv.org/abs/2609.00065)（已核对当前 v2 元数据）。此来源只说明方法工具，不为本项目数值或模型能力背书。
+
+## 2026-10-22数据与Infra修订
+
+| 文件 | 实际覆盖 | 重跑入口 |
+| --- | --- | --- |
+| topology-reference.json | 32逻辑rank两套层映射、全部分组覆盖/PP一致、131,072原始目标、16token/32分配与22超容量；没有分布式MoE | python examples/topology_case.py --out runs/topology |
+| elastic-reference.json | 本机CPU Gloo真实进程退出86、快照保持、2→1→2边界迁移、384保留目标、全参数/Adam误差与重放ID | python examples/elastic_case.py --out runs/elastic-case |
+| infra-browser-reference.json | 两viewport的10组页面/五维交互/折叠/主题/宽度检查 | 先启动preview，再运行scripts/check-infra-browser.cjs；需现有Playwright与浏览器 |
+| regression-20261022.json | 本轮重新执行原12项严格恢复与原TP/PP代数/依赖检查 | verify_resume.py、parallel_case.py |
+
+原2026-10-15的清洗、配比、CPU性能、默认训练和多步DDP数值保留为历史实测，本轮没有重跑这些完整实验，也没有编写新的模型质量或GPU性能数字。新elastic案例不是torchrun、Kubernetes/Kueue/Slurm或分片迁移，运行用新out目录；完整可信快照留在忽略的runs目录。

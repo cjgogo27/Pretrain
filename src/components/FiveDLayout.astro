@@ -1,0 +1,49 @@
+---
+import reference from '../../examples/results/topology-reference.json';
+const layout=reference.layout;
+const groups={};
+for(const [axis,value] of Object.entries(layout.attention_groups)) groups[`attention:${axis}`]=value;
+for(const [axis,value] of Object.entries(layout.expert_groups)) groups[`expert:${axis}`]=value;
+---
+<section class="five-d" data-five-d data-groups={JSON.stringify(groups)} data-ranks={JSON.stringify(layout.ranks)} aria-label="32逻辑rank的五维并行分组">
+  <p><strong>点选同一rank：它在哪些合作组里？</strong></p>
+  <p class="note">独立教学布局，读取实际枚举JSON；没有启动32卡训练。</p>
+  <label>查看分组 <select data-axis aria-label="选择并行维度">
+    <optgroup label="Attention层"><option value="attention:TP">Attention / TP2</option><option value="attention:CP">Attention / CP2</option><option value="attention:DP">Attention / DP4</option><option value="attention:PP">Attention / PP2</option></optgroup>
+    <optgroup label="专家层"><option value="expert:EP">专家 / EP8</option><option value="expert:ETP">专家 / ETP1</option><option value="expert:EDP">专家 / EDP2</option><option value="expert:PP">专家 / PP2</option></optgroup>
+  </select></label>
+  {[0,1].map(stage=><div class="stage"><p>流水线阶段 PP{stage} · 逻辑rank {stage*16}–{stage*16+15}</p><div class="ranks">{Array.from({length:16},(_,index)=>stage*16+index).map(rank=><button type="button" data-rank={rank} aria-pressed={rank===0?'true':'false'}>rank {rank}</button>)}</div></div>)}
+  <output aria-live="polite">rank 0 的 Attention / TP组：[0, 1]。</output>
+  <p data-coordinate>同一设备两套坐标：Attention(PP0,DP0,CP0,TP0)；专家(PP0,EDP0,EP0,ETP0)。</p>
+  <p class="legend">有色块是同组成员，粗边框是当前rank。32设备各有一个身份，层的切换不新增设备。</p>
+  <p><strong>原始目标位置 / 更新：</strong> B2 × 完整S4096 × A4 × 独立DP4 = 131,072；EP和CP不再重复乘入。</p>
+</section>
+<script>
+  import { groupFor } from '../lib/topology.mjs';
+  for(const root of document.querySelectorAll<HTMLElement>('[data-five-d]')) {
+    const groups=JSON.parse(root.dataset.groups!);
+    const ranks=JSON.parse(root.dataset.ranks!);
+    const select=root.querySelector<HTMLSelectElement>('select')!;
+    let current=0;
+    function render(){
+      const members=groupFor(groups,select.value,current);
+      root.querySelectorAll<HTMLButtonElement>('[data-rank]').forEach(button=>{
+        const rank=Number(button.dataset.rank);
+        button.setAttribute('aria-pressed',String(rank===current));
+        button.classList.toggle('member',members.includes(rank));
+      });
+      const [layer,axis]=select.value.split(':');
+      root.querySelector('output')!.textContent=`rank ${current} 的 ${layer==='attention'?'Attention':'专家'} / ${axis}组：[${members.join(', ')}]，共${members.length}个成员。`;
+      const point=ranks[current];
+      const format=(coordinates:Record<string,number>)=>Object.entries(coordinates).map(([name,value])=>name+value).join(',');
+      root.querySelector('[data-coordinate]')!.textContent=`同一设备两套坐标：Attention(${format(point.attention)})；专家(${format(point.expert)})。`;
+    }
+    select.addEventListener('change',render);
+    root.querySelectorAll<HTMLButtonElement>('[data-rank]').forEach(button=>button.addEventListener('click',()=>{current=Number(button.dataset.rank);render();}));
+    render();
+  }
+</script>
+<style>
+  .five-d {padding:1rem;border:1px solid var(--sl-color-gray-4);border-radius:.65rem;margin-block:1.5rem;}.note,.legend {font-size:.85rem;color:var(--sl-color-gray-2);}select {max-width:100%;padding:.5rem;background:var(--sl-color-bg);color:var(--sl-color-text);border:1px solid var(--sl-color-gray-4);border-radius:.4rem;}.stage {margin-block:.8rem;padding:.6rem;border:1px dashed var(--sl-color-gray-4);border-radius:.4rem;}.stage p {font-size:.9rem;margin:0 0 .5rem;}.ranks {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:.4rem;}button {font-size:.8rem;padding:.5rem .1rem;min-height:2.5rem;cursor:pointer;background:var(--sl-color-bg);color:var(--sl-color-text);border:1px solid var(--sl-color-gray-4);border-radius:.3rem;white-space:nowrap;}.member {background:var(--sl-color-accent-low);color:var(--sl-color-accent-high);}button[aria-pressed="true"] {outline:2px solid var(--sl-color-accent);outline-offset:1px;}output {display:block;font-weight:600;overflow-wrap:anywhere;}[data-coordinate] {font-size:.9rem;overflow-wrap:anywhere;}@media(max-width:34rem){.ranks {grid-template-columns:repeat(4,minmax(0,1fr));}}
+  .ranks > button {margin:0;min-height:2.75rem;}
+</style>

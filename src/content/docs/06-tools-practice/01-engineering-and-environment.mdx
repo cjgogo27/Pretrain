@@ -74,7 +74,11 @@ npm run build
 
 本项目验证环境记录在 `VALIDATION.md`。该记录描述实际完成的检查，不等于承诺所有平台都能逐位复现。
 
+后续可选Infra实践中，`topology_case.py`只用Python标准库，`elastic_case.py`使用这里已有的PyTorch/CPU Gloo；不需要安装Megatron、Slurm或Kubernetes。五维逻辑枚举与本机进程迁移的范围见6.3。浏览器界面检查属于网站维护，另需Playwright与可用浏览器，不是训练依赖。
+
 <SectionQA id="6.1" mode="answer" />
+
+
 
 ## 参考资料
 

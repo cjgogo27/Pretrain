@@ -1,4 +1,80 @@
-# 实际验证记录：三组优先修订
+# 实际验证记录：《听懂大模型预训练》
+
+## 2026-10-22：数据与Infra、五维并行、弹性迁移
+
+基线HEAD369b5bba89e3a817dc3781310de766230f772dca；远端没有新增主干变化。核对现有清洗/配比、TP/PP代数/调度、CPU profile及DDP恢复后补内容，没有把已有章节当缺失。保留六章29节87问答；新增1页跨章地图，共41页。部署和后训练未扩展。
+
+### 实际修改与证据层级
+
+- 1.1/1.3、首页和导读将数据、学习、Infra列为共同主线；2.1/2.4/2.5补实际配比消费、供给/缓存/预取与已提交数据游标。
+- 4.5新增DP/TP/PP/CP/EP、MoE路由、ETP/EDP与SP/CP区分；32逻辑设备的Attention PP2/DP4/CP2/TP2和专家PP2/EDP2/EP8/ETP1复用同一设备，PP组一致。全局原始目标131,072，不机械乘EP变256设备。
+- 4.6区分集群准入、成员重建、训练状态迁移；5.4补互斥时间段下排队/占用/已保留更新，48 GPU小时仅是假设算例。
+- 6.3提供独立CPU边界迁移程序；默认train.py与其格式2严格恢复没有修改或放宽，规范化训练哈希仍为596cbe6485f4e405b6abc399e0d2b793a812b36caa4096b6b65a902960487403。
+
+### 运行环境
+
+Windows11（10.0.26200）、Python3.12.5、PyTorch2.11.0+cpu；新成员迁移使用FP64、每进程1线程、Gloo/TCPStore(use_libuv=False)。无CUDA、NCCL或生产调度平台运行。站点仍用固定Astro7.3.1/Starlight0.42.0，无新增训练或生产依赖。浏览器复用现有Playwright和Edge155.0.4283.62，两个全新浏览器上下文，不使用个人浏览配置。
+
+### 实际逻辑布局与路由核对
+
+```bash
+python examples/topology_case.py --out runs/topology-20261022-final
+npm test
+```
+
+PASS。枚举32个逻辑rank，检查每维完整覆盖、无重复、PP组成员完全一致；EP3无法整除的布局拒绝。16原始token、top-k2为32次专家分配，均衡负载每专家4；集中到两个专家时各16，容量定义ceil(1.25×16×2/8)=5，超容量22次分配。没有把22写成不同token数量，也未运行All-to-All、32进程或MoE训练。Python实际报告与界面共用JSON；4个Node测试检查手算成员、PP一致、计数与无效归属拒绝，全部通过。来源位置见SOURCE_AUDIT.md。
+
+### 实际进程故障与边界成员迁移
+
+```bash
+python examples/elastic_case.py --out runs/elastic-20261022
+```
+
+PASS，完整报告examples/results/elastic-reference.json。它复用TinyLM类但不调用train.run：width16/layers1/heads4/S8、固定随机ID窗口、无dropout、FP64完整复制模型与AdamW；lr0.001、decay0.1、clip1。每更新8全局窗口、64有效目标位置；B2，DP2时A2，DP1时A4。
+
+1. 固定两进程执行6更新作基线。
+2. 另一路两进程提交2步后，实际注入rank1退出码86；父进程只接受这个指定故障和标记，确认最新快照仍为第2步且文件SHA不变。
+3. 以单进程重建到第4步，再以两进程重建到第6步，实际DP顺序2/2/1/1/2/2，A为2/2/4/4/2/2。
+4. 两路最终均保留384位置，窗口ID账本0…47相同。完整模型最大绝对差9.490718672634083e-16，完整Adam状态1.0408340855860843e-17，通过atol1e-9/rtol1e-8。
+5. 失败尝试已记录两rank首微批次共32目标位置，后续可能还有部分计算，所以32只是可确认的丢弃计算下界。对应ID16/18/17/19被重放；384不冒充总实际计算量。
+
+有Windows地址连接重试警告，以及注入故障后父进程终止其他worker的诊断，最终完成。没有发生写盘中断；只验证失败没有提交新快照，不能当成写入事务故障验收。程序不保存rank RNG，因为无随机采样层且窗口全局固定；不覆盖生产dropout/shuffle/多worker数据加载器。它不是torchrun自动弹性准入、Kubernetes/Kueue/Slurm或分片/TP/PP/CP/EP状态迁移，不支持生产性能推论。
+
+### 原有行为的实际回归
+
+```bash
+python examples/verify_resume.py
+python examples/parallel_case.py --out runs/parallel-20261022
+python -m compileall -q examples
+```
+
+- 原12项严格恢复检查重新PASS，包括因果/形状、12步连续与6步恢复状态、RNG/采样器、768 token、改数据/代码/缺代码身份/world size/PyTorch/计划拒绝、仅权重状态重建。
+- 原TP同进程FP64代数重新PASS，最大差8.881784197001252e-16；PP理想GPipe依赖与4/20空闲格重新PASS；不是新TP/PP分布式运行。
+- compileall通过。回归JSON为regression-20261022.json。原清洗、三种子配比、profile、默认100步和真实train.run多步DDP实验本轮未重跑；历史产物/数值保留，不修改日期冒充新结果。
+
+### 文档与浏览器实际检查
+
+| 执行项 | 结果 |
+| --- | --- |
+| npm run check:docs | PASS：41源页面、29节、87问答，正文中文约4.55万字 |
+| npm run build | PASS：41 HTML、Pagefind、sitemap |
+| npm run check:built | PASS：87个KaTeX实例，内部资源/目标/锚点缺失0，29组三答案 |
+| npm test | PASS：4个逻辑布局/计数/归属测试；CI已加入 |
+| git diff --check | PASS，包含新增文件暂存后复查 |
+| scripts/check-infra-browser.cjs | PASS：1280×900与390×844，10组检查，页面JS异常0 |
+
+浏览器使用实际构建预览端口4326；PLAYWRIGHT_MODULE指向现有工作区运行时，BROWSER_EXECUTABLE指向本机Edge，BROWSER_CHECK_OUT=runs/infra-browser-20261022。10组包括三主线图/宽度、32rank各层成员/坐标/键盘、进阶折叠和角色答案、主题与响应布局、弹性证据和成本示例显示。截图已实际打开检查；修正Starlight通用相邻元素margin造成的rank按钮/卡片错位，最终增加几何对齐断言。报告infra-browser-reference.json，截图留在runs中。
+
+首次尝试沿用旧Chromium缓存路径，因文件已不存在而失败；随后改用现有Edge实际运行通过，没有把浏览器启动失败计成通过。构建仍有既有依赖级head-inject、i18n/404警告，无构建错误。静态HTML检查与浏览器检查各自标明范围，未测试所有页面/搜索、Firefox/Safari或真机触控。
+
+### 仍未运行的范围
+
+真实5D MoE训练、All-to-All性能、长上下文CP、CUDA/NCCL、多机、生产资源调度、分片优化器/DCP加载、随机层弹性迁移、写盘故障、长期稳定性与GPU MFU均未运行。逻辑32rank、真实本机CPU进程、官方项目机制和假设预算分别标记。严格恢复未被改造成可任意换布局的入口。
+
+---
+
+## 2026-10-15历史记录：三组优先修订
+
 
 日期：2026-10-15（Asia/Shanghai）。本轮只修订清洗/配比实跑、TP/PP与性能案例、多步DDP训练及恢复。保留六章29节87问答；部署、后训练和其他进阶专题未扩展。以下通过项均在本轮实际执行。
 
