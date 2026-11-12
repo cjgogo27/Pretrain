@@ -10,6 +10,7 @@ export default defineConfig({
   trailingSlash: 'always',
   markdown: { processor: unified({ remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] }) },
   integrations: [starlight({
+    components: { Header: './src/components/BilingualHeader.astro' },
     title: '《听懂大模型预训练》',
     description: '从原始文本到模型权重：大模型预训练的原理、系统与工程实践。',
     locales: { root: { label: '简体中文', lang: 'zh-CN' } },

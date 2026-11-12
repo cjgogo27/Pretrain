@@ -21,6 +21,7 @@ for(const [axis,value] of Object.entries(layout.expert_groups)) groups[`expert:$
 <script>
   import { groupFor } from '../lib/topology.mjs';
   for(const root of document.querySelectorAll<HTMLElement>('[data-five-d]')) {
+    const english=document.documentElement.lang==='en';
     const groups=JSON.parse(root.dataset.groups!);
     const ranks=JSON.parse(root.dataset.ranks!);
     const select=root.querySelector<HTMLSelectElement>('select')!;
@@ -33,10 +34,10 @@ for(const [axis,value] of Object.entries(layout.expert_groups)) groups[`expert:$
         button.classList.toggle('member',members.includes(rank));
       });
       const [layer,axis]=select.value.split(':');
-      root.querySelector('output')!.textContent=`rank ${current} 的 ${layer==='attention'?'Attention':'专家'} / ${axis}组：[${members.join(', ')}]，共${members.length}个成员。`;
+      root.querySelector('output')!.textContent=english ? `rank ${current}: ${layer==='attention'?'Attention':'Expert'} / ${axis} group: [${members.join(', ')}], ${members.length} members.` : `rank ${current} 的 ${layer==='attention'?'Attention':'专家'} / ${axis}组：[${members.join(', ')}]，共${members.length}个成员。`;
       const point=ranks[current];
       const format=(coordinates:Record<string,number>)=>Object.entries(coordinates).map(([name,value])=>name+value).join(',');
-      root.querySelector('[data-coordinate]')!.textContent=`同一设备两套坐标：Attention(${format(point.attention)})；专家(${format(point.expert)})。`;
+      root.querySelector('[data-coordinate]')!.textContent=english ? `Two coordinate systems on one device: Attention(${format(point.attention)}); Expert(${format(point.expert)}).` : `同一设备两套坐标：Attention(${format(point.attention)})；专家(${format(point.expert)})。`;
     }
     select.addEventListener('change',render);
     root.querySelectorAll<HTMLButtonElement>('[data-rank]').forEach(button=>button.addEventListener('click',()=>{current=Number(button.dataset.rank);render();}));

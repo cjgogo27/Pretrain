@@ -1,0 +1,40 @@
+---
+import Search from '@astrojs/starlight/components/Search.astro';
+import SiteTitle from '@astrojs/starlight/components/SiteTitle.astro';
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const pathname = Astro.url.pathname;
+const english = pathname.startsWith(base + 'en/');
+const other = english ? base + pathname.slice((base + 'en/').length) : base + 'en/' + pathname.slice(base.length);
+---
+<div class="bilingual-header">
+  <div class="title"><SiteTitle /></div>
+  <div class="search"><Search /></div>
+  <a class="language-switch" data-language-switch href={other} lang={english ? 'zh-CN' : 'en'} hreflang={english ? 'zh-CN' : 'en'} aria-label={english ? '切换为中文' : 'Switch to English'} translate="no">
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 5h12M9 3v2M5 5c0 6 4 10 9 12M13 5c0 6-4 10-10 12M14 21l4-10 4 10M15.5 17h5" /></svg>
+    <span>{english ? '中文' : 'English'}</span>
+  </a>
+  <div class="preferences"><SocialIcons /><ThemeSelect /></div>
+</div>
+<script>
+  // Both links are real static pages; JavaScript only carries the current anchor.
+  for (const link of document.querySelectorAll<HTMLAnchorElement>('[data-language-switch]')) {
+    link.addEventListener('click', () => {
+      const target = new URL(link.href);
+      target.hash = window.location.hash;
+      link.href = target.href;
+    });
+  }
+</script>
+<style>
+  .bilingual-header { display:flex;align-items:center;gap:.75rem;height:100%; }
+  .title {min-width:0;flex:1;overflow:hidden;padding:.25rem;margin:-.25rem;}
+  .search,.preferences {display:flex;align-items:center;gap:1rem;}
+  .preferences {display:none;}
+  .language-switch {display:inline-flex;align-items:center;gap:.3rem;flex-shrink:0;min-height:2.75rem;padding:.35rem .55rem;border:1px solid var(--sl-color-gray-5);border-radius:.4rem;text-decoration:none;color:var(--sl-color-text);font-size:.875rem;white-space:nowrap;}
+  .language-switch:hover {border-color:var(--sl-color-text-accent);color:var(--sl-color-text-accent);}
+  .language-switch:focus-visible {outline:2px solid var(--sl-color-text-accent);outline-offset:3px;}
+  @media(min-width:50rem){.title{flex:initial;max-width:26rem;}.search{flex:1;}.preferences{display:flex;}}
+  @media(max-width:24rem){.bilingual-header{gap:.35rem;}.language-switch{padding:.3rem;font-size:.8rem;}.language-switch svg{display:none;}}
+</style>

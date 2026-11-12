@@ -5,11 +5,12 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
-    "build": "astro build",
+    "build": "astro build && node scripts/bilingual.mjs",
     "preview": "astro preview --host 127.0.0.1",
     "check:docs": "node scripts/check-docs.mjs",
-    "check:built": "node scripts/check-built.mjs",
-    "test": "node --test scripts/topology.test.mjs"
+    "check:built": "node scripts/check-built.mjs && node scripts/check-bilingual.mjs",
+    "test": "node --test scripts/topology.test.mjs",
+    "i18n:collect": "node scripts/bilingual.mjs collect"
   },
   "overrides": {
     "rolldown": "1.2.13"
@@ -20,6 +21,8 @@
     "astro": "7.3.1",
     "katex": "0.18.7",
     "rehype-katex": "7.0.1",
-    "remark-math": "6.0.0"
+    "remark-math": "6.0.0",
+    "parse5": "7.3.0",
+    "pagefind": "1.5.2"
   }
 }

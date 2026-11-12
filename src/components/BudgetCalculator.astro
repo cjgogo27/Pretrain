@@ -11,6 +11,7 @@
 </section>
 <script>
   function initBudget() {
+    const english = document.documentElement.lang === 'en';
     const ids = ['budget-n', 'budget-d', 'budget-p', 'budget-f'];
     const fields = ids.map(id => document.getElementById(id) as HTMLInputElement);
     const result = document.getElementById('budget-result');
@@ -18,12 +19,12 @@
     function update() {
       const values = fields.map(field => Number(field.value));
       if (values.some((v, i) => !Number.isFinite(v) || v <= 0 || !fields[i].validity.valid)) {
-        result!.textContent = '请输入范围内的正数，GPU 数量应为整数。'; return;
+        result!.textContent = english ? 'Enter positive values within the allowed ranges; GPU count must be an integer.' : '请输入范围内的正数，GPU 数量应为整数。'; return;
       }
       const [n, d, p, f] = values;
       const flops = 6 * n * 1e9 * d * 1e9;
       const hours = flops / (p * f * 1e12) / 3600;
-      result!.textContent = `估计训练量 ${flops.toExponential(2)} FLOPs；理想计算时间 ${hours.toLocaleString('zh-CN', { maximumFractionDigits: 1 })} 小时（${(hours / 24).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 天）。`;
+      result!.textContent = english ? `Estimated training compute: ${flops.toExponential(2)} FLOPs; ideal compute time: ${hours.toLocaleString('en', {maximumFractionDigits:1})} hours (${(hours/24).toLocaleString('en', {maximumFractionDigits:2})} days).` : `估计训练量 ${flops.toExponential(2)} FLOPs；理想计算时间 ${hours.toLocaleString('zh-CN', { maximumFractionDigits: 1 })} 小时（${(hours / 24).toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 天）。`;
     }
     fields.forEach(field => field.addEventListener('input', update)); update();
   }

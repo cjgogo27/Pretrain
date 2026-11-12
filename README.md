@@ -128,3 +128,12 @@ npm test
 topology_case仅用Python标准库做逻辑枚举；elastic_case用已有PyTorch、CPU Gloo完整FP64副本、固定随机ID窗口、无dropout，不下载语料/模型。默认严格恢复仍拒绝world size变化。产物与实际限制见[结果索引](examples/results/README.md)和[VALIDATION.md](VALIDATION.md)。
 
 可选浏览器检查入口scripts/check-infra-browser.cjs，先准备Playwright/浏览器并启动本地preview；可通过PLAYWRIGHT_MODULE、BROWSER_EXECUTABLE与BROWSER_CHECK_BASE指定现有运行时和站点。这不是训练依赖。
+
+
+## 中文 / English
+
+站点页眉的 **English / 中文** 按钮切换当前章节，链接停留在本站；启用JavaScript时同时保留章节锚点。英文阅读、目录导航和折叠问答不需要外部翻译服务。英文版是机器翻译稿，章节标题、常见技术术语与交互提示做了针对性校订，尚未逐句完成专业英文编辑；遇到技术歧义请以中文原文为准。代码块与公式不翻译。
+
+`npm run build` 先生成原有中文页面，再用已提交的 `src/i18n/en.json` 与 `src/i18n/overrides.json` 生成 `/en/` 下的静态页面、语言元数据和搜索索引。生成时不调用翻译服务；中文内容新增或修改而缺少译文会使构建失败，避免把中文冒充英文。英文预览请用 build + preview；开发服务器主要用于中文源文编辑。
+
+维护翻译：先运行 `npm exec astro build` 和 `npm run i18n:collect`，在 `runs/translation-needed.json` 查看新/变更片段；补齐 `en.json` 中对应的 `{zh,en}` 条目（键是源文SHA256前24位），或在 `overrides.json` 中加入人工译文。然后重跑完整构建及 `npm run check:built`。后者逐页核对语言配对、未翻译可见文字、代码/公式一致性和英文角色答案。可选浏览器检查为 `scripts/check-bilingual-browser.cjs`，使用与既有脚本相同的Playwright/浏览器环境变量。

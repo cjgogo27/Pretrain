@@ -1,0 +1,47 @@
+{
+  "status": "PASS",
+  "base": "http://127.0.0.1:4331/Pretrain/",
+  "browser": "157.0.4341.46",
+  "checks": [
+    {
+      "viewport": 1280,
+      "name": "same_chapter_switch_and_anchor",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "english_answers_and_live_widget",
+      "status": "PASS"
+    },
+    {
+      "viewport": 1280,
+      "name": "other_dynamic_messages_stay_english",
+      "status": "PASS"
+    },
+    {
+      "name": "english_search_returns_english_pages",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "same_chapter_switch_and_anchor",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "english_answers_and_live_widget",
+      "status": "PASS"
+    },
+    {
+      "viewport": 390,
+      "name": "other_dynamic_messages_stay_english",
+      "status": "PASS"
+    },
+    {
+      "name": "english_reading_without_javascript",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "count": 8
+}
